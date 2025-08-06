@@ -52,9 +52,11 @@ pipe = Pipeline([
 
 # 4. hyper-parameter grid
 param_grid = {
-    'clf__n_estimators': [400, 600, 800],
-    'clf__max_depth':    [30, 50, 70],
-    'clf__min_samples_split': [2, 4],
+    'clf__n_estimators': [100, 300, 500, 800],
+    'clf__max_depth': [10, 30, 50, None],
+    'clf__min_samples_split': [2, 5, 10],
+    'clf__min_samples_leaf': [1, 2, 4],
+    'clf__max_features': ['sqrt', 'log2']
 }
 
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
