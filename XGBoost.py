@@ -6,6 +6,8 @@ Independent training & testing sets
 
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
@@ -38,6 +40,8 @@ print('Test shape :', X_test.shape,  'Label counts:\n', pd.Series(y_test).value_
 pipe = Pipeline([
     ('scaler', StandardScaler()),
     ('clf', XGBClassifier(
+        tree_method='hist',
+        device='cuda',
         objective='multi:softprob',
         eval_metric='mlogloss',
         random_state=42,
@@ -56,7 +60,7 @@ grid = GridSearchCV(
     param_grid=param_grid,
     cv=StratifiedKFold(n_splits=3, shuffle=True, random_state=42),
     scoring='accuracy',
-    n_jobs=-1,
+    n_jobs=1,
     verbose=1)
 
 grid.fit(X_train, y_train)
@@ -67,15 +71,32 @@ print('CV best accuracy:', grid.best_score_)
 best_model = grid.best_estimator_
 y_pred = best_model.predict(X_test)
 
+acc = accuracy_score(y_test, y_pred)
 print('\n=== Test Results ===')
-print('Accuracy:', accuracy_score(y_test, y_pred))
+print('Accuracy:', acc)
 print('\nReport:\n', classification_report(y_test, y_pred, target_names=label_names))
-print('\nConfusion matrix:\n',
-      pd.DataFrame(confusion_matrix(y_test, y_pred),
-                   index=label_names,
-                   columns=label_names))
 
-# 6. save
+# 6. 绘制并保存混淆矩阵
+cm = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm,
+            annot=True,
+            fmt='d',
+            cmap='Blues',
+            xticklabels=label_names,
+            yticklabels=label_names)
+
+plt.title('PAM50 Confusion Matrix')
+plt.ylabel('Actual')
+plt.xlabel('Predicted')
+plt.tight_layout()
+
+# 先保存再显示，避免 show 阻塞导致文件没写完
+plt.savefig('confusion_matrix_xgb.png', dpi=300, bbox_inches='tight')
+plt.show()          # 默认 block=False
+
+# 7. save
 joblib.dump(best_model, 'pam50_xgb_final.pkl')
 importances = best_model.named_steps['clf'].feature_importances_
 top_genes = pd.Series(importances, index=gene_cols).sort_values(ascending=False).head(20)
