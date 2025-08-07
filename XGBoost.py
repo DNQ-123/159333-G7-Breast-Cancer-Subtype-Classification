@@ -13,21 +13,21 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import xgboost as xgb
 import joblib
 
-# 1. 路径
+# 1. File paths
 TRAIN_PATH = 'train_dataset_resolved_20250714_222423.csv'
 TEST_PATH  = 'test_dataset_resolved_20250714_222423.csv'
 
-# 2. 读取并转置：行=样本，列=基因(+标签)
+# 2. Read and transpose: rows=samples, columns=genes(+label)
 train_df = pd.read_csv(TRAIN_PATH, index_col=0).T
 test_df  = pd.read_csv(TEST_PATH,  index_col=0).T
 
-# 3. 标签编码
+# 3. Encode labels
 label_encoder = LabelEncoder()
 y_train = label_encoder.fit_transform(train_df['PAM50_Subtype'])
 y_test  = label_encoder.transform(test_df['PAM50_Subtype'])
 label_names = label_encoder.classes_
 
-# 4. 特征对齐
+# 4. Align features
 gene_cols = train_df.columns.drop('PAM50_Subtype')
 X_train = train_df[gene_cols].astype(float)
 X_test  = test_df.reindex(columns=gene_cols, fill_value=0).astype(float)
@@ -37,11 +37,11 @@ print('Train shape:', X_train.shape, 'Label counts:\n',
 print('Test shape :', X_test.shape,  'Label counts:\n',
       pd.Series(y_test).value_counts())
 
-# 5. 构造 GPU 上的 DMatrix
+# 5. Build GPU DMatrix
 dtrain = xgb.DMatrix(X_train.values, label=y_train)
 dtest  = xgb.DMatrix(X_test.values,  label=y_test)
 
-# 6. 训练参数
+# 6. Training parameters
 params = {
     'objective': 'multi:softprob',
     'num_class': len(np.unique(y_train)),
@@ -52,7 +52,7 @@ params = {
     'seed': 42
 }
 
-# 7. 训练（带早停）
+# 7. Train with early stopping
 model = xgb.train(
     params,
     dtrain,
@@ -62,17 +62,17 @@ model = xgb.train(
     verbose_eval=50
 )
 
-# 8. 预测
+# 8. Prediction
 y_pred_prob = model.predict(dtest)
 y_pred = np.argmax(y_pred_prob, axis=1)
 
-# 9. 评估
+# 9. Evaluation
 acc = accuracy_score(y_test, y_pred)
 print('\n=== Test Results (GPU) ===')
 print('Accuracy:', acc)
 print('\nReport:\n', classification_report(y_test, y_pred, target_names=label_names))
 
-# 10. 混淆矩阵
+# 10. Confusion matrix
 cm = confusion_matrix(y_test, y_pred)
 plt.figure(figsize=(6, 5))
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
@@ -84,8 +84,8 @@ plt.tight_layout()
 plt.savefig('confusion_matrix_xgb_gpu.png', dpi=300, bbox_inches='tight')
 plt.show()
 
-# 11. 保存模型 & 特征重要性
-model.save_model('pam50_xgb_gpu.json')        # 原生接口模型
+# 11. Save model & feature importance
+model.save_model('pam50_xgb_gpu.json')        # Native model format
 importance = model.get_score(importance_type='gain')
 top_genes = pd.Series(importance).sort_values(ascending=False).head(20)
 print('\nTop 20 genes:\n', top_genes)
