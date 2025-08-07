@@ -76,9 +76,27 @@ random_search = RandomizedSearchCV(
 # 5. Train model
 random_search.fit(X_train, y_train)
 
+pd.set_option('display.max_columns', None)  # display all columns
+pd.set_option('display.max_rows', None)     # display all rows
+
 # 6. Output best parameters and cross-validation score
 print('\nBest parameters found by RandomizedSearchCV:\n', random_search.best_params_)
 print('Best cross-validation accuracy:', random_search.best_score_)
+
+# 6.1 Cross-validation score of the best model (more stable evaluation)
+from sklearn.model_selection import cross_val_score
+
+best_model = random_search.best_estimator_
+
+cv_scores = cross_val_score(
+    best_model, X_train, y_train,
+    cv=cv,
+    scoring='accuracy',
+    n_jobs=-1
+)
+
+print('\nCross-validation accuracy scores:', cv_scores)
+print('Mean accuracy: {:.4f} ± {:.4f}'.format(cv_scores.mean(), cv_scores.std()))
 
 # 7. Evaluate on independent test set
 best_model = random_search.best_estimator_
