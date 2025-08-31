@@ -1,0 +1,32 @@
+{
+  "model_type": "StandardScaler + RandomForest",
+  "n_features": 4224,
+  "best_params": {
+    "clf__max_depth": 20,
+    "clf__max_features": "sqrt",
+    "clf__min_samples_leaf": 4,
+    "clf__min_samples_split": 8,
+    "clf__n_estimators": 400
+  },
+  "cv_search_score": 0.9221789070657849,
+  "final_test_accuracy": 0.9065420560747663,
+  "final_test_f1": 0.906817301080043,
+  "top_10_features": {
+    "ESR1": 0.01100760111718995,
+    "UBE2T": 0.008430240124534926,
+    "SPDEF": 0.008258652229481593,
+    "TFF3": 0.007075557740853122,
+    "IL6ST": 0.006907893822907311,
+    "FOXC1": 0.0065715575282182855,
+    "SFRP1": 0.006438803055729606,
+    "AR": 0.0059759126111300475,
+    "SLC39A6": 0.005966267173103786,
+    "EXO1": 0.00591358416677312
+  },
+  "feature_importance_stats": {
+    "mean": 0.00023674242424242425,
+    "std": 0.0007089654864534864,
+    "min": 0.0,
+    "max": 0.01100760111718995
+  }
+}

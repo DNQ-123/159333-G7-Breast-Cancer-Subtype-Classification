@@ -1,0 +1,20 @@
+5-Fold Cross-Validation Summary - Random Forest
+========================================
+Architecture: StandardScaler + Random Forest Classifier
+========================================
+Mean Accuracy: 0.9222 ± 0.0146
+Mean F1-Score: 0.9214 ± 0.0151
+Individual Fold Results:
+  Fold 1: Accuracy=0.9294, F1=0.9286
+  Fold 2: Accuracy=0.9000, F1=0.8976
+  Fold 3: Accuracy=0.9294, F1=0.9284
+  Fold 4: Accuracy=0.9112, F1=0.9117
+  Fold 5: Accuracy=0.9408, F1=0.9409
+
+Final Test Performance:
+  Test Accuracy: 0.9065
+  Test F1-Score: 0.9068
+
+Model Details:
+  Best Parameters: {'clf__max_depth': 20, 'clf__max_features': 'sqrt', 'clf__min_samples_leaf': 4, 'clf__min_samples_split': 8, 'clf__n_estimators': 400}
+  CV Search Score: 0.9222
