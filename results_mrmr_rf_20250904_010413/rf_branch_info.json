@@ -1,0 +1,34 @@
+{
+  "model_type": "mRMR + RandomForest",
+  "n_selected_features": 67,
+  "best_params": {
+    "clf__max_depth": null,
+    "clf__max_features": "log2",
+    "clf__min_samples_leaf": 5,
+    "clf__min_samples_split": 4,
+    "clf__n_estimators": 737,
+    "mrmr__k": 67,
+    "mrmr__redundancy_weight": 0.9311386259972629
+  },
+  "cv_search_score": 0.9300983986351061,
+  "final_test_accuracy": 0.8878504672897196,
+  "final_test_f1": 0.8903286129965512,
+  "top_10_features": {
+    "ESR1": 0.051654083022224316,
+    "FOXC1": 0.0513261541710109,
+    "MLPH": 0.03737136799455268,
+    "UBE2T": 0.03117602087707786,
+    "SPDEF": 0.03095832500762473,
+    "TPX2": 0.0276345363141636,
+    "TFF3": 0.02733812177572229,
+    "IL6ST": 0.027170983504968563,
+    "MMP11": 0.026316602918013784,
+    "AURKA": 0.02625564697752236
+  },
+  "feature_importance_stats": {
+    "mean": 0.014925373134328356,
+    "std": 0.010406213391936819,
+    "min": 0.0027101606497994023,
+    "max": 0.051654083022224316
+  }
+}
