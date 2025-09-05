@@ -132,7 +132,10 @@ pipe = Pipeline([
         num_class=len(np.unique(y_train)),
         eval_metric='mlogloss',
         n_jobs=-1,
-        random_state=RANDOM_STATE
+        random_state=RANDOM_STATE,
+         # 预设正则化基础值
+        reg_alpha=0,       # 初始L1正则化
+        reg_lambda=1       # 初始L2正则化（XGBoost默认值为1）
     ))
 ])
 
@@ -153,7 +156,10 @@ param_dist = {
     'clf__subsample': uniform(0.6, 0.4),
     'clf__colsample_bytree': uniform(0.6, 0.4),
     'clf__min_child_weight': randint(1, 6),
-    'clf__gamma': uniform(0, 0.3)
+    'clf__gamma': uniform(0, 0.3),
+
+    'clf__reg_alpha': uniform(0, 5),    # L1正则化，控制特征稀疏性
+    'clf__reg_lambda': uniform(0, 5)   # L2正则化，减轻过拟合
 }
 
 random_search = RandomizedSearchCV(

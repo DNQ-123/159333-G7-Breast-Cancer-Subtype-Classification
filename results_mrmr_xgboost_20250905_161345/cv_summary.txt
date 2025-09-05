@@ -1,0 +1,20 @@
+5-Fold Cross-Validation Summary - mRMR + XGBoost
+========================================
+Architecture: mRMR Feature Selection + XGBoost Classifier
+========================================
+Mean Accuracy: 0.9363 ± 0.0213
+Mean F1-Score: 0.9363 ± 0.0209
+Individual Fold Results:
+  Fold 1: Accuracy=0.9471, F1=0.9462
+  Fold 2: Accuracy=0.9353, F1=0.9353
+  Fold 3: Accuracy=0.9353, F1=0.9353
+  Fold 4: Accuracy=0.8994, F1=0.9001
+  Fold 5: Accuracy=0.9645, F1=0.9643
+
+Final Test Performance:
+  Test Accuracy: 0.9065
+  Test F1-Score: 0.9067
+
+Model Details:
+  Best Parameters: {'clf__colsample_bytree': np.float64(0.6976502088991097), 'clf__gamma': np.float64(0.05048731265187917), 'clf__learning_rate': np.float64(0.05375284391461405), 'clf__max_depth': 3, 'clf__min_child_weight': 4, 'clf__n_estimators': 412, 'clf__reg_alpha': np.float64(0.3244612355449078), 'clf__reg_lambda': np.float64(1.2695770696717235), 'clf__subsample': np.float64(0.6987504251354405), 'mrmr__k': 98, 'mrmr__redundancy_weight': np.float64(0.7972485058923855)}
+  CV Search Score: 0.9214
