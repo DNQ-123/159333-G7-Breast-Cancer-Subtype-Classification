@@ -115,9 +115,15 @@ y_pred = best_model.predict(X_test)
 acc  = accuracy_score(y_test_enc, y_pred)
 kappa = cohen_kappa_score(y_test_enc, y_pred)
 
-print('\nAccuracy: {:.4f}  Kappa: {:.4f}'.format(acc, kappa))
-print(classification_report(y_test_enc, y_pred,
-                            target_names=le.classes_, digits=4))
+report_str = classification_report(y_test_enc, y_pred,
+                                   target_names=le.classes_, digits=4)
+log_str = (f'Accuracy: {acc:.4f}  Kappa: {kappa:.4f}\n\n'
+           f'Classification Report:\n{report_str}\n')
+
+# ---- 既打印又保存 ----
+print(log_str)
+with open(os.path.join(OUT_DIR, 'metrics(RF).txt'), 'w', encoding='utf-8') as f:
+    f.write(log_str)
 
 # 混淆矩阵
 cm = confusion_matrix(y_test_enc, y_pred)
@@ -127,13 +133,5 @@ sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
 plt.title('Confusion Matrix(rf)')
 plt.tight_layout()
 plt.savefig(os.path.join(OUT_DIR, 'confusion_matrix.png'), dpi=300)
-
-# 学习曲线
-results = best_model.evals_result()
-plt.figure()
-plt.plot(results['validation_0']['mlogloss'], label='Test')
-plt.title('Learning Curve (log-loss)')
-plt.legend()
-plt.savefig(os.path.join(OUT_DIR, 'learning_curve.png'), dpi=300)
 
 print(f'\n所有结果已保存至 --> {OUT_DIR}')
