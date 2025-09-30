@@ -1,0 +1,22 @@
+
+=== ATTENTION MIL 最终测试结果摘要 ===
+实验时间: 2025-09-29 17:35:49
+模型类型: MIL_Classifier_attention
+
+=== 独立测试集结果 ===
+测试集大小: 459 样本
+集成模型数: 5 个
+测试F1分数: 0.5910
+测试准确率: 0.6383
+测试F1宏平均: 0.5055
+
+=== 每类别详细结果 ===
+Basal-like: 真实=78, 预测=91, 正确=48, Precision=0.527, Recall=0.615, F1=0.568
+HER2-enriched: 真实=36, 预测=0, 正确=0, Precision=0.000, Recall=0.000, F1=0.000
+Luminal A: 真实=207, 预测=260, 正确=179, Precision=0.688, Recall=0.865, F1=0.767
+Luminal B: 真实=90, 预测=55, 正确=19, Precision=0.345, Recall=0.211, F1=0.262
+Solid Tissue Normal: 真实=48, 预测=53, 正确=47, Precision=0.887, Recall=0.979, F1=0.931
+
+结果文件保存在: results_mil_attention_20250929_021419
+详细预测结果: final_test_detailed_predictions.csv
+模型文件: mil_attention_fold_*.pth

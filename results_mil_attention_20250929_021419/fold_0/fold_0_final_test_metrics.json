@@ -1,0 +1,10 @@
+{
+  "fold": 0,
+  "fold_type": "final_test",
+  "mil_method": "attention",
+  "accuracy": 0.6383442265795207,
+  "f1_weighted": 0.5909638156217366,
+  "f1_macro": 0.5054809322363016,
+  "total_samples": 459,
+  "correct_predictions": 293
+}

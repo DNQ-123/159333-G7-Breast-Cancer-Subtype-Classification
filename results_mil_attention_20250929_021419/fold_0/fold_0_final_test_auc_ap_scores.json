@@ -1,0 +1,28 @@
+{
+  "class_specific": {
+    "Basal-like": {
+      "roc_auc": 0.8446059627161988,
+      "average_precision": 0.5409816453271846
+    },
+    "HER2-enriched": {
+      "roc_auc": 0.662923561859732,
+      "average_precision": 0.13729148101260918
+    },
+    "Luminal A": {
+      "roc_auc": 0.8300743807990184,
+      "average_precision": 0.771659554970923
+    },
+    "Luminal B": {
+      "roc_auc": 0.6782896717856067,
+      "average_precision": 0.31470515557096207
+    },
+    "Solid Tissue Normal": {
+      "roc_auc": 0.9974655312246553,
+      "average_precision": 0.982108842911389
+    }
+  },
+  "macro_averages": {
+    "roc_auc_macro": 0.8042797011955946,
+    "average_precision_macro": 0.5493493359586136
+  }
+}
