@@ -1,0 +1,38 @@
+{
+  "experiment_summary": {
+    "timestamp": "2025-09-30 08:22:03",
+    "model_type": "MIL_Classifier_dsmil",
+    "mil_method": "dsmil",
+    "total_folds": 5
+  },
+  "final_test_results": {
+    "fold": 0,
+    "fold_type": "final_test",
+    "mil_method": "dsmil",
+    "accuracy": 0.6296296296296297,
+    "f1_weighted": 0.585693880552327,
+    "f1_macro": 0.4997466395710403,
+    "total_samples": 459,
+    "correct_predictions": 289,
+    "roc_auc_macro": 0.7996920139189021,
+    "average_precision_macro": 0.5475649009507509,
+    "roc_auc_per_class": {
+      "Basal-like": 0.8394239181640758,
+      "HER2-enriched": 0.6530076175466246,
+      "Luminal A": 0.8248792270531402,
+      "Luminal B": 0.6764227642276424,
+      "Solid Tissue Normal": 0.9973641524736415
+    },
+    "average_precision_per_class": {
+      "Basal-like": 0.5279218798195485,
+      "HER2-enriched": 0.12638276509982452,
+      "Luminal A": 0.764151986646307,
+      "Luminal B": 0.3373245470605992,
+      "Solid Tissue Normal": 0.9820433261274751
+    }
+  },
+  "test_ensemble_info": {
+    "num_models_used": 5,
+    "ensemble_method": "average_probabilities"
+  }
+}
