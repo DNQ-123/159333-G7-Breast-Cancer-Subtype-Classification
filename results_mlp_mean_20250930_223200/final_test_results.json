@@ -1,0 +1,38 @@
+{
+  "experiment_summary": {
+    "timestamp": "2025-10-01 10:15:48",
+    "model_type": "MLP_Classifier_mean",
+    "aggregation_method": "mean",
+    "total_folds": 5
+  },
+  "final_test_results": {
+    "fold": 0,
+    "fold_type": "final_test",
+    "aggregation_method": "mean",
+    "accuracy": 0.599128540305011,
+    "f1_weighted": 0.5945011823363244,
+    "f1_macro": 0.5515384541002515,
+    "total_samples": 459,
+    "correct_predictions": 275,
+    "roc_auc_macro": 0.8185048962864719,
+    "average_precision_macro": 0.5788885510975754,
+    "roc_auc_per_class": {
+      "Basal-like": 0.8320209973753281,
+      "HER2-enriched": 0.756107171000788,
+      "Luminal A": 0.8209301433939115,
+      "Luminal B": 0.6787413429689853,
+      "Solid Tissue Normal": 0.9983272506082724
+    },
+    "average_precision_per_class": {
+      "Basal-like": 0.573643961201802,
+      "HER2-enriched": 0.22161588562048518,
+      "Luminal A": 0.7493966492916542,
+      "Luminal B": 0.36098949139480774,
+      "Solid Tissue Normal": 0.988796767979128
+    }
+  },
+  "test_ensemble_info": {
+    "num_models_used": 5,
+    "ensemble_method": "average_probabilities"
+  }
+}
