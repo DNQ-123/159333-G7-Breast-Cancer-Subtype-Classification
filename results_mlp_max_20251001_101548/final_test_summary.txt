@@ -1,0 +1,22 @@
+
+=== MLP (MAX) 最终测试结果摘要 ===
+实验时间: 2025-10-01 18:53:44
+模型类型: MLP_Classifier_max
+
+=== 独立测试集结果 ===
+测试集大小: 459 样本
+集成模型数: 5 个
+测试F1分数: 0.5830
+测试准确率: 0.6187
+测试F1宏平均: 0.5336
+
+=== 每类别详细结果 ===
+Basal-like: 真实=78, 预测=64, 正确=38, Precision=0.594, Recall=0.487, F1=0.535
+HER2-enriched: 真实=36, 预测=15, 正确=5, Precision=0.333, Recall=0.139, F1=0.196
+Luminal A: 真实=207, 预测=277, 正确=173, Precision=0.625, Recall=0.836, F1=0.715
+Luminal B: 真实=90, 预测=48, 正确=20, Precision=0.417, Recall=0.222, F1=0.290
+Solid Tissue Normal: 真实=48, 预测=55, 正确=48, Precision=0.873, Recall=1.000, F1=0.932
+
+结果文件保存在: results_mlp_max_20251001_101548
+详细预测结果: final_test_detailed_predictions.csv
+模型文件: mlp_max_fold_*.pth
