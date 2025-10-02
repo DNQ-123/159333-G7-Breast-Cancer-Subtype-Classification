@@ -1,0 +1,15 @@
+Accuracy: 0.6796  Kappa: 0.5292  F1-macro: 0.5452
+
+Classification Report:
+                     precision    recall  f1-score   support
+
+         Basal-like     0.5347    0.6923    0.6034        78
+      HER2-enriched     0.2000    0.0303    0.0526        33
+          Luminal A     0.6955    0.9024    0.7856       205
+          Luminal B     0.5588    0.2065    0.3016        92
+Solid Tissue Normal     0.9661    1.0000    0.9828        57
+
+           accuracy                         0.6796       465
+          macro avg     0.5910    0.5663    0.5452       465
+       weighted avg     0.6395    0.6796    0.6314       465
+
