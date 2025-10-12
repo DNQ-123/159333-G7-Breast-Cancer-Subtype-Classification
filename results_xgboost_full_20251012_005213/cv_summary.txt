@@ -1,0 +1,22 @@
+5-Fold Cross-Validation Summary - XGBoost (Full Features)
+========================================
+Architecture: XGBoost Classifier
+========================================
+Mean Accuracy: 0.9316 ± 0.0142
+Mean F1-Score: 0.9311 ± 0.0142
+Individual Fold Results:
+  Fold 1: Accuracy=0.9294, F1=0.9285
+  Fold 2: Accuracy=0.9294, F1=0.9281
+  Fold 3: Accuracy=0.9235, F1=0.9239
+  Fold 4: Accuracy=0.9172, F1=0.9167
+  Fold 5: Accuracy=0.9586, F1=0.9582
+
+Final Test Performance:
+  Test Accuracy: 0.9206
+  Test F1-Score: 0.9205
+
+Model Details:
+  Best Parameters: {'colsample_bytree': np.float64(0.6307919639315172), 'gamma': np.float64(0.0869254358741304), 'learning_rate': np.float64(0.04224425745080089), 'max_depth': 4, 'min_child_weight': 2, 'n_estimators': 856, 'subsample': np.float64(0.7182534743350856)}
+  CV Search Score: 0.9228
+
+
