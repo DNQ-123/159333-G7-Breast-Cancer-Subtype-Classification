@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-LogisticRegression 五亚型分类（增强版 v2）
+LogisticRegression Five-Subtype Classification (Enhanced Version v2)
 ——————————————————————————————————
-改进要点：
-1) 训练集:测试集 = 8:2（各类别保持比例）
-2) 训练集内部进行 5-Fold 交叉验证（不变）
-3) 调整 focal / boost / rarity / margin 参数
-4) 扩大 RandomizedSearchCV 搜索空间与迭代次数
-5) 提高 max_iter、增加收敛稳定性
+Improvements:
+1) Training set:Test set = 8:2 (maintain proportion for each class)
+2) 5-Fold cross-validation within training set (unchanged)
+3) Adjust focal / boost / rarity / margin parameters
+4) Expand RandomizedSearchCV search space and iteration count
+5) Increase max_iter, improve convergence stability
 """
 
 import warnings, os, json, joblib
@@ -37,14 +37,14 @@ RANDOM_STATE = 2025
 np.random.seed(RANDOM_STATE)
 
 # -------------------------------------------------------
-# 1. 路径与参数设置
+# 1. Path and Parameter Settings
 # -------------------------------------------------------
 CSV_PATH = r"E:\Massey\Mammon2\wsi_feature_labels.csv"
 H5_ROOT  = r"E:\Massey\Mammon2"
 OUT_DIR  = r"./outputs_lr_plus_v2"
 os.makedirs(OUT_DIR, exist_ok=True)
 
-# Focal & Boost 系列参数
+# Focal & Boost Series Parameters
 ENABLE_FOCAL      = True
 BASE_GAMMA        = 1.5
 FOCAL_TWO_PASS    = True
@@ -57,12 +57,12 @@ ENABLE_MARGIN     = True
 MARGIN_THRESHOLD  = 0.25
 MARGIN_WEIGHT     = 0.35
 
-# 搜索参数
+# Search Parameters
 N_SPLITS_CV        = 5
 RANDOM_SEARCH_ITERS = 60
 
 # -------------------------------------------------------
-# 2. 数据加载与聚合
+# 2. Data Loading and Aggregation
 # -------------------------------------------------------
 def load_h5_features(path):
     with h5py.File(path, 'r') as f:
@@ -74,21 +74,21 @@ def build_Xy(csv_path, h5_root):
     keep = ['Basal-like','HER2-enriched','Luminal A','Luminal B','Solid Tissue Normal']
     df = df[df['Label'].isin(keep)].reset_index(drop=True)
     feats, labels = [], []
-    for _, row in tqdm(df.iterrows(), total=len(df), desc="读取+聚合 H5"):
+    for _, row in tqdm(df.iterrows(), total=len(df), desc="Reading+Aggregating H5"):
         path = os.path.join(h5_root, row["File_Path"])
         if not os.path.isfile(path):
-            print(f"⚠️ 缺失文件: {path}")
+            print(f"⚠️ Missing file: {path}")
             continue
         feats.append(load_h5_features(path))
         labels.append(row["Label"])
     return np.array(feats), np.array(labels)
 
-print("📥 正在加载特征 …")
+print("📥 Loading features ...")
 X, y = build_Xy(CSV_PATH, H5_ROOT)
-print(f"✅ 完成! 样本数={X.shape[0]}, 特征维数={X.shape[1]}")
+print(f"✅ Done! Sample count={X.shape[0]}, Feature dimension={X.shape[1]}")
 
 # -------------------------------------------------------
-# 3. 拆分与标准化 (按类别 8:2)
+# 3. Splitting and Standardization (by class 8:2)
 # -------------------------------------------------------
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, stratify=y, random_state=RANDOM_STATE
@@ -105,10 +105,10 @@ X_train = scaler.fit_transform(X_train)
 X_test  = scaler.transform(X_test)
 
 print(f"Train={X_train.shape[0]}  Test={X_test.shape[0]}")
-print("类别映射:", dict(zip(le.classes_, le.transform(le.classes_))))
+print("Class mapping:", dict(zip(le.classes_, le.transform(le.classes_))))
 
 # -------------------------------------------------------
-# 4. 权重构造
+# 4. Weight Construction
 # -------------------------------------------------------
 train_counts = Counter(y_train_enc)
 mean_freq = np.mean(list(train_counts.values()))
@@ -126,10 +126,10 @@ sample_weight_train *= boost_vec[y_train_enc]
 # Rarity
 sample_weight_train *= (1.0 + RARITY_MULTIPLIER * (rarity_vec[y_train_enc] - 1.0))
 
-# Focal & Margin 前向概率
+# Focal & Margin Forward Probability
 base_proba = None
 if FOCAL_TWO_PASS and ENABLE_FOCAL:
-    print("\n[Pass-1] Logistic 基础概率估计 …")
+    print("\n[Pass-1] Logistic Base Probability Estimation ...")
     base_lr = LogisticRegression(
         multi_class="multinomial", solver="lbfgs",
         max_iter=800, class_weight='balanced',
@@ -163,7 +163,7 @@ if ENABLE_MARGIN and base_proba is not None:
 sample_weight_train = np.clip(sample_weight_train, 0.05, 50.0)
 
 # -------------------------------------------------------
-# 5. 调参空间与搜索
+# 5. Hyperparameter Tuning Space and Search
 # -------------------------------------------------------
 param_dist = {
     'C': loguniform(1e-4, 1e4),
@@ -181,7 +181,7 @@ base_lr = LogisticRegression(
 
 cv = StratifiedKFold(n_splits=N_SPLITS_CV, shuffle=True, random_state=RANDOM_STATE)
 
-print("\n[Fast Search] RandomizedSearchCV running …")
+print("\n[Fast Search] RandomizedSearchCV running ...")
 search = RandomizedSearchCV(
     estimator=base_lr,
     param_distributions=param_dist,
@@ -197,7 +197,7 @@ print("\nBest params:", search.best_params_)
 print("Best CV f1_macro:", search.best_score_)
 
 # -------------------------------------------------------
-# 6. 五折交叉验证评估
+# 6. 5-Fold Cross-Validation Evaluation
 # -------------------------------------------------------
 best_model = search.best_estimator_
 results_dir = os.path.join(OUT_DIR, "lr_results")
@@ -234,7 +234,7 @@ for i, (tr_idx, val_idx) in enumerate(cv.split(X_train, y_train_enc), 1):
     plt.close()
 
 # -------------------------------------------------------
-# 7. 全训练集重训 + 测试评估
+# 7. Full Training Set Retraining + Test Evaluation
 # -------------------------------------------------------
 final_model = clone(best_model)
 final_model.fit(X_train, y_train_enc, sample_weight=sample_weight_train)
@@ -262,7 +262,7 @@ plt.savefig(os.path.join(results_dir, "final_test_confusion_matrix.png"), dpi=30
 plt.close()
 
 # -------------------------------------------------------
-# 8. 系数重要性与元信息
+# 8. Coefficient Importance and Meta Information
 # -------------------------------------------------------
 coef_abs = np.abs(final_model.coef_).mean(axis=0)
 idx_top = np.argsort(coef_abs)[::-1][:20]
@@ -293,7 +293,7 @@ with open(os.path.join(results_dir, "lr_branch_info.json"), "w", encoding="utf-8
     json.dump(branch_info, f, ensure_ascii=False, indent=2)
 
 # -------------------------------------------------------
-# 9. 结果汇总
+# 9. Result Summary
 # -------------------------------------------------------
 pd.DataFrame(fold_results).to_csv(os.path.join(results_dir, "cv_results.csv"), index=False)
 
@@ -319,12 +319,12 @@ metrics_df = pd.DataFrame([
 ])
 metrics_df.to_csv(os.path.join(results_dir, "final_training_metrics.csv"), index=False)
 
-print("\n=== 所有结果已保存 ===")
-print(f"结果目录: {results_dir}")
-print(f"包含文件:")
+print("\n=== All results saved ===")
+print(f"Result directory: {results_dir}")
+print(f"Included files:")
 print("  - cv_results.csv / cv_summary.txt")
 print("  - final_test_classification_report.csv / final_test_confusion_matrix.png")
-print("  - cv_folds/ 每折详细报告与混淆矩阵")
+print("  - cv_folds/ detailed reports and confusion matrices for each fold")
 print("  - lr_branch_info.json / top20_features.csv")
 print("  - pam50_lr_model.pkl / label_encoder.pkl / scaler.pkl")
-print("根目录兼容文件: lr_best.pkl / confusion_matrix.png")
+print("Root directory compatible files: lr_best.pkl / confusion_matrix.png")

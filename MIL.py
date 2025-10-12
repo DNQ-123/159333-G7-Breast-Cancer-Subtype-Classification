@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-MIL聚合分类器 - 基于CLAM特征数据集
-实现多种MIL聚合方法：Attention-MIL, DSMIL, TransMIL
+MIL Aggregation Classifier - Based on CLAM Feature Dataset
+Implements multiple MIL aggregation methods: Attention-MIL, DSMIL, TransMIL
 """
 
 import torch
@@ -33,19 +33,19 @@ warnings.filterwarnings('ignore')
 
 class MILWSIDataset(Dataset):
     """
-    MIL WSI数据集 - 保持原始patch-level特征，不进行聚合
-    与lightweight_wsi_mlp_classifier.py保持一致的数据加载方式
+    MIL WSI Dataset - Maintains original patch-level features without aggregation
+    Consistent data loading method with lightweight_wsi_mlp_classifier.py
     """
     
     def __init__(self, csv_file, feature_dir, sample_types=['01', '11'], 
                  max_patches=2000, enable_augmentation=False):
         """
         Args:
-            csv_file: CSV文件路径
-            feature_dir: 特征文件目录
-            sample_types: 样本类型
-            max_patches: 最大patch数量，用于内存控制
-            enable_augmentation: 是否启用数据增强
+            csv_file: CSV file path
+            feature_dir: Feature file directory
+            sample_types: Sample types
+            max_patches: Maximum number of patches, for memory control
+            enable_augmentation: Whether to enable data augmentation
         """
         self.data_df = pd.read_csv(csv_file, dtype={'Sample_Type_Code': str})
         self.feature_dir = Path(feature_dir)
@@ -53,45 +53,45 @@ class MILWSIDataset(Dataset):
         self.enable_augmentation = enable_augmentation
         self.training = False
         
-        # 数据过滤 - 与原代码保持一致
+        # Data filtering - consistent with original code
         self.data_df = self.data_df[self.data_df['Sample_Type_Code'].isin(sample_types)]
         self.data_df = self.data_df[~self.data_df['Label'].isin(['Unknown', 'Metastatic'])]
         self.data_df = self.data_df.reset_index(drop=True)
         
-        # 标签编码
+        # Label encoding
         self.label_encoder = LabelEncoder()
         self.data_df['encoded_label'] = self.label_encoder.fit_transform(self.data_df['Label'])
         
-        # 检查数据完整性
+        # Check data integrity
         self._check_data_integrity()
         
-        # 预计算特征维度
+        # Precompute feature dimension
         self.feature_dim = self._get_feature_dimension()
         
-        print(f"MIL数据集初始化完成:")
-        print(f"  样本数量: {len(self.data_df)}")
-        print(f"  特征维度: {self.feature_dim}")
-        print(f"  最大patch数: {self.max_patches}")
+        print(f"MIL dataset initialization completed:")
+        print(f"  Number of samples: {len(self.data_df)}")
+        print(f"  Feature dimension: {self.feature_dim}")
+        print(f"  Maximum patches: {self.max_patches}")
         self._print_label_distribution()
     
     def _check_data_integrity(self):
-        """检查数据完整性"""
+        """Check data integrity"""
         missing_files = []
-        print("检查数据文件完整性...")
+        print("Checking data file integrity...")
         
-        for idx in tqdm(range(min(len(self.data_df), 10)), desc="抽样检查"):
+        for idx in tqdm(range(min(len(self.data_df), 10)), desc="Sampling check"):
             filename = self.data_df.iloc[idx]['Filename']
             filepath = self.feature_dir / filename
             if not filepath.exists():
                 missing_files.append(filename)
         
         if missing_files:
-            print(f"警告: 发现 {len(missing_files)} 个缺失文件")
+            print(f"Warning: Found {len(missing_files)} missing files")
         else:
-            print("✅ 数据文件完整性检查通过")
+            print("✅ Data file integrity check passed")
     
     def _get_feature_dimension(self):
-        """获取特征维度"""
+        """Get feature dimension"""
         for idx in range(min(5, len(self.data_df))):
             try:
                 filename = self.data_df.iloc[idx]['Filename']
@@ -106,24 +106,24 @@ class MILWSIDataset(Dataset):
                         key = list(f.keys())[0]
                         features = f[key][:]
                 
-                # 处理特征形状
+                # Process feature shape
                 if features.ndim == 3:
                     features = features.squeeze(0)
                 
                 if features.ndim == 2:
-                    return features.shape[1]  # 返回特征维度
+                    return features.shape[1]  # Return feature dimension
                 else:
                     return len(features)
                     
             except Exception as e:
-                print(f"跳过文件 {filepath}: {e}")
+                print(f"Skipping file {filepath}: {e}")
                 continue
         
-        return 1024  # 默认CLAM特征维度
+        return 1024  # Default CLAM feature dimension
     
     def _print_label_distribution(self):
-        """打印标签分布"""
-        print("标签分布:")
+        """Print label distribution"""
+        print("Label distribution:")
         for label_name in self.label_encoder.classes_:
             count = np.sum(self.data_df['encoded_label'] == 
                           self.label_encoder.transform([label_name])[0])
@@ -140,7 +140,7 @@ class MILWSIDataset(Dataset):
         
         try:
             with h5py.File(filepath, 'r') as f:
-                # 与原代码保持一致的特征加载方式
+                # Consistent feature loading method with original code
                 if 'features' in f.keys():
                     features = f['features'][:]
                 elif 'feats' in f.keys():
@@ -149,52 +149,52 @@ class MILWSIDataset(Dataset):
                     key = list(f.keys())[0]
                     features = f[key][:]
             
-            # 特征处理
+            # Feature processing
             if features.ndim == 3:
                 features = features.squeeze(0)
             
-            # 对于MIL，我们需要保持patch-level特征
+            # For MIL, we need to maintain patch-level features
             if features.ndim == 1:
-                # 如果是1D特征，重新reshape为单个patch
+                # If it's 1D feature, reshape into single patch
                 features = features.reshape(1, -1)
             
-            # 限制patch数量以控制内存
+            # Limit patch count to control memory
             if features.shape[0] > self.max_patches:
-                # 随机采样或选择前N个
+                # Random sampling or select first N
                 if self.training and self.enable_augmentation:
-                    # 训练时随机采样
+                    # Random sampling during training
                     indices = np.random.choice(features.shape[0], self.max_patches, replace=False)
                     features = features[indices]
                 else:
-                    # 验证/测试时选择前N个
+                    # Select first N during validation/testing
                     features = features[:self.max_patches]
             
-            # 数据增强（仅在训练时）
+            # Data augmentation (only during training)
             if self.enable_augmentation and self.training:
                 features = self._augment_patches(features)
             
-            # 转换为tensor
+            # Convert to tensor
             features = torch.FloatTensor(features)  # [num_patches, feature_dim]
             label = torch.LongTensor([row['encoded_label']])[0]
             
             return features, label, filename
             
         except Exception as e:
-            print(f"加载文件错误 {filepath}: {e}")
-            # 返回默认特征
+            print(f"Error loading file {filepath}: {e}")
+            # Return default features
             zero_features = torch.zeros(1, self.feature_dim)
             label = torch.LongTensor([row['encoded_label']])[0]
             return zero_features, label, filename
     
     def _augment_patches(self, features):
-        """patch级别的数据增强"""
+        """Patch-level data augmentation"""
         if np.random.rand() < 0.3:
-            # 添加少量噪声
+            # Add small amount of noise
             noise = np.random.normal(0, 0.01, features.shape)
             features = features + noise
         
         if np.random.rand() < 0.2:
-            # patch级别的dropout
+            # Patch-level dropout
             num_patches = features.shape[0]
             keep_ratio = 0.9
             keep_patches = int(num_patches * keep_ratio)
@@ -205,17 +205,17 @@ class MILWSIDataset(Dataset):
         return features
     
     def set_training_mode(self, training):
-        """设置训练模式"""
+        """Set training mode"""
         self.training = training
 
 # ===============================
-# MIL聚合方法实现
+# MIL Aggregation Method Implementations
 # ===============================
 
 class AttentionMIL(nn.Module):
     """
     Attention-based MIL (Ilse et al.)
-    使用注意力机制聚合patch特征
+    Uses attention mechanism to aggregate patch features
     """
     
     def __init__(self, input_dim=1024, hidden_dim=256, num_classes=5, dropout=0.25):
@@ -225,21 +225,21 @@ class AttentionMIL(nn.Module):
         self.hidden_dim = hidden_dim
         self.num_classes = num_classes
         
-        # 特征变换层
+        # Feature transformation layer
         self.feature_extractor = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout)
         )
         
-        # 注意力机制
+        # Attention mechanism
         self.attention = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, 1)
         )
         
-        # 分类器
+        # Classifier
         self.classifier = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
@@ -250,27 +250,27 @@ class AttentionMIL(nn.Module):
     def forward(self, x):
         """
         Args:
-            x: [batch_size, num_patches, input_dim] 或 [num_patches, input_dim]
+            x: [batch_size, num_patches, input_dim] or [num_patches, input_dim]
         Returns:
             logits: [batch_size, num_classes]
             attention_weights: [batch_size, num_patches, 1]
         """
         if x.dim() == 2:
-            x = x.unsqueeze(0)  # 添加batch维度
+            x = x.unsqueeze(0)  # Add batch dimension
         
         batch_size, num_patches, _ = x.shape
         
-        # 特征提取
+        # Feature extraction
         h = self.feature_extractor(x)  # [batch_size, num_patches, hidden_dim]
         
-        # 计算注意力权重
+        # Calculate attention weights
         attention_weights = self.attention(h)  # [batch_size, num_patches, 1]
-        attention_weights = F.softmax(attention_weights, dim=1)  # softmax归一化
+        attention_weights = F.softmax(attention_weights, dim=1)  # softmax normalization
         
-        # 加权聚合
+        # Weighted aggregation
         aggregated_features = torch.sum(attention_weights * h, dim=1)  # [batch_size, hidden_dim]
         
-        # 分类
+        # Classification
         logits = self.classifier(aggregated_features)  # [batch_size, num_classes]
         
         return logits, attention_weights
@@ -278,7 +278,7 @@ class AttentionMIL(nn.Module):
 class DSMIL(nn.Module):
     """
     Dual-Stream MIL (Li et al.)
-    使用双流注意力机制
+    Uses dual-stream attention mechanism
     """
     
     def __init__(self, input_dim=1024, hidden_dim=256, num_classes=5, dropout=0.25):
@@ -288,14 +288,14 @@ class DSMIL(nn.Module):
         self.hidden_dim = hidden_dim
         self.num_classes = num_classes
         
-        # 共享特征提取器
+        # Shared feature extractor
         self.feature_extractor = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout)
         )
         
-        # 实例级分类器
+        # Instance-level classifier
         self.instance_classifier = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
@@ -303,14 +303,14 @@ class DSMIL(nn.Module):
             nn.Linear(hidden_dim // 2, num_classes)
         )
         
-        # 包级注意力
+        # Bag-level attention
         self.bag_attention = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, 1)
         )
         
-        # 包级分类器
+        # Bag-level classifier
         self.bag_classifier = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
@@ -321,7 +321,7 @@ class DSMIL(nn.Module):
     def forward(self, x):
         """
         Args:
-            x: [batch_size, num_patches, input_dim] 或 [num_patches, input_dim]
+            x: [batch_size, num_patches, input_dim] or [num_patches, input_dim]
         Returns:
             bag_logits: [batch_size, num_classes]
             instance_logits: [batch_size, num_patches, num_classes]
@@ -332,20 +332,20 @@ class DSMIL(nn.Module):
         
         batch_size, num_patches, _ = x.shape
         
-        # 特征提取
+        # Feature extraction
         h = self.feature_extractor(x)  # [batch_size, num_patches, hidden_dim]
         
-        # 实例级预测
+        # Instance-level prediction
         instance_logits = self.instance_classifier(h)  # [batch_size, num_patches, num_classes]
         
-        # 注意力权重计算
+        # Attention weight calculation
         attention_weights = self.bag_attention(h)  # [batch_size, num_patches, 1]
         attention_weights = F.softmax(attention_weights, dim=1)
         
-        # 包级特征聚合
+        # Bag-level feature aggregation
         bag_features = torch.sum(attention_weights * h, dim=1)  # [batch_size, hidden_dim]
         
-        # 包级预测
+        # Bag-level prediction
         bag_logits = self.bag_classifier(bag_features)  # [batch_size, num_classes]
         
         return bag_logits, instance_logits, attention_weights
@@ -353,7 +353,7 @@ class DSMIL(nn.Module):
 class TransMIL(nn.Module):
     """
     Transformer-based MIL
-    使用Transformer进行特征聚合
+    Uses Transformer for feature aggregation
     """
     
     def __init__(self, input_dim=1024, hidden_dim=256, num_heads=8, 
@@ -364,13 +364,13 @@ class TransMIL(nn.Module):
         self.hidden_dim = hidden_dim
         self.num_classes = num_classes
         
-        # 输入投影
+        # Input projection
         self.input_projection = nn.Linear(input_dim, hidden_dim)
         
-        # 位置编码（可选）
+        # Position encoding (optional)
         self.pos_encoding = nn.Parameter(torch.randn(1, 1000, hidden_dim) * 0.1)
         
-        # Transformer编码器
+        # Transformer encoder
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=hidden_dim,
             nhead=num_heads,
@@ -380,12 +380,12 @@ class TransMIL(nn.Module):
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         
-        # 聚合方式：使用CLS token或全局平均池化
+        # Aggregation method: use CLS token or global average pooling
         self.use_cls_token = True
         if self.use_cls_token:
             self.cls_token = nn.Parameter(torch.randn(1, 1, hidden_dim))
         
-        # 分类器
+        # Classifier
         self.classifier = nn.Sequential(
             nn.LayerNorm(hidden_dim),
             nn.Linear(hidden_dim, hidden_dim // 2),
@@ -397,55 +397,55 @@ class TransMIL(nn.Module):
     def forward(self, x):
         """
         Args:
-            x: [batch_size, num_patches, input_dim] 或 [num_patches, input_dim]
+            x: [batch_size, num_patches, input_dim] or [num_patches, input_dim]
         Returns:
             logits: [batch_size, num_classes]
-            attention_weights: Transformer注意力权重
+            attention_weights: Transformer attention weights
         """
         if x.dim() == 2:
             x = x.unsqueeze(0)
         
         batch_size, num_patches, _ = x.shape
         
-        # 输入投影
+        # Input projection
         x = self.input_projection(x)  # [batch_size, num_patches, hidden_dim]
         
-        # 添加位置编码
+        # Add position encoding
         if num_patches <= self.pos_encoding.shape[1]:
             x = x + self.pos_encoding[:, :num_patches, :]
         
-        # 添加CLS token（如果使用）
+        # Add CLS token (if used)
         if self.use_cls_token:
             cls_tokens = self.cls_token.expand(batch_size, -1, -1)
             x = torch.cat([cls_tokens, x], dim=1)  # [batch_size, num_patches+1, hidden_dim]
         
-        # Transformer编码
+        # Transformer encoding
         encoded = self.transformer(x)  # [batch_size, seq_len, hidden_dim]
         
-        # 特征聚合
+        # Feature aggregation
         if self.use_cls_token:
-            # 使用CLS token
+            # Use CLS token
             aggregated_features = encoded[:, 0, :]  # [batch_size, hidden_dim]
         else:
-            # 全局平均池化
+            # Global average pooling
             aggregated_features = torch.mean(encoded, dim=1)  # [batch_size, hidden_dim]
         
-        # 分类
+        # Classification
         logits = self.classifier(aggregated_features)  # [batch_size, num_classes]
         
-        # 注意力权重（简化版本，返回最后一层的平均注意力）
-        attention_weights = None  # 可以通过hook获取详细注意力权重
+        # Attention weights (simplified version, returns average attention of last layer)
+        attention_weights = None  # Can get detailed attention weights through hooks
         
         return logits, attention_weights
 
 # ===============================
-# MIL分类器主类
+# MIL Classifier Main Class
 # ===============================
 
 class MILClassifier:
     """
-    MIL分类器主类
-    支持多种MIL聚合方法
+    MIL Classifier Main Class
+    Supports multiple MIL aggregation methods
     """
     
     def __init__(self, csv_file, feature_dir, mil_method='attention', device=None):
@@ -454,13 +454,13 @@ class MILClassifier:
         self.mil_method = mil_method
         self.device = device if device else torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        print(f"使用设备: {self.device}")
-        print(f"MIL方法: {mil_method}")
+        print(f"Using device: {self.device}")
+        print(f"MIL method: {mil_method}")
         
-        # 创建数据集
+        # Create dataset
         self.dataset = MILWSIDataset(
             csv_file, feature_dir, 
-            max_patches=1000,  # 控制内存使用
+            max_patches=1000,  # Control memory usage
             enable_augmentation=True
         )
         
@@ -468,17 +468,17 @@ class MILClassifier:
         self.class_names = self.dataset.label_encoder.classes_
         self.feature_dim = self.dataset.feature_dim
         
-        # 创建结果保存目录
+        # Create results save directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.results_dir = Path(f"results_mil_{mil_method}_{timestamp}")
         self.results_dir.mkdir(exist_ok=True)
-        print(f"结果将保存到: {self.results_dir}")
+        print(f"Results will be saved to: {self.results_dir}")
         
-        # 保存实验配置
+        # Save experiment configuration
         self.save_experiment_config()
     
     def save_experiment_config(self):
-        """保存实验配置信息"""
+        """Save experiment configuration information"""
         config = {
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'model_type': f'MIL_Classifier_{self.mil_method}',
@@ -496,7 +496,7 @@ class MILClassifier:
             'class_distribution': {}
         }
         
-        # 添加类别分布信息
+        # Add class distribution information
         for label_name in self.class_names:
             count = np.sum(self.dataset.data_df['encoded_label'] == 
                           self.dataset.label_encoder.transform([label_name])[0])
@@ -505,15 +505,15 @@ class MILClassifier:
                 'percentage': float(count / len(self.dataset) * 100)
             }
         
-        # 保存配置
+        # Save configuration
         config_path = self.results_dir / 'experiment_config.json'
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         
-        print(f"实验配置已保存: {config_path}")
+        print(f"Experiment configuration saved: {config_path}")
     
     def create_model(self):
-        """根据指定方法创建MIL模型"""
+        """Create MIL model based on specified method"""
         if self.mil_method == 'attention':
             model = AttentionMIL(
                 input_dim=self.feature_dim,
@@ -538,13 +538,13 @@ class MILClassifier:
                 dropout=0.25
             )
         else:
-            raise ValueError(f"不支持的MIL方法: {self.mil_method}")
+            raise ValueError(f"Unsupported MIL method: {self.mil_method}")
         
         return model.to(self.device)
     
     def collate_fn(self, batch):
         """
-        自定义collate函数处理不同大小的patch集合
+        Custom collate function to handle different sized patch collections
         """
         features_list = []
         labels_list = []
@@ -555,17 +555,17 @@ class MILClassifier:
             labels_list.append(label)
             filenames_list.append(filename)
         
-        # 标签可以直接stack
+        # Labels can be directly stacked
         labels = torch.stack(labels_list)
         
         return features_list, labels, filenames_list
     
     def save_fold_results(self, fold, y_true, y_pred, fold_name="validation", y_pred_proba=None):
-        """保存每折的结果"""
+        """Save results for each fold"""
         fold_dir = self.results_dir / f"fold_{fold+1}"
         fold_dir.mkdir(exist_ok=True)
         
-        # 分类报告
+        # Classification report
         class_report = classification_report(
             y_true, y_pred, 
             target_names=self.class_names,
@@ -573,7 +573,7 @@ class MILClassifier:
             zero_division=0
         )
         
-        # 保存分类报告
+        # Save classification report
         report_path = fold_dir / f"fold_{fold+1}_{fold_name}_classification_report.json"
         with open(report_path, 'w', encoding='utf-8') as f:
             json.dump(class_report, f, indent=2, ensure_ascii=False)
@@ -582,13 +582,13 @@ class MILClassifier:
         report_csv_path = fold_dir / f"fold_{fold+1}_{fold_name}_classification_report.csv"
         report_df.to_csv(report_csv_path, index=True)
         
-        # 混淆矩阵
+        # Confusion matrix
         cm = confusion_matrix(y_true, y_pred)
         cm_df = pd.DataFrame(cm, index=self.class_names, columns=self.class_names)
         cm_path = fold_dir / f"fold_{fold+1}_{fold_name}_confusion_matrix.csv"
         cm_df.to_csv(cm_path, index=True)
         
-        # 绘制混淆矩阵
+        # Plot confusion matrix
         plt.figure(figsize=(10, 8))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
                     xticklabels=self.class_names, yticklabels=self.class_names)
@@ -603,7 +603,7 @@ class MILClassifier:
         plt.savefig(cm_plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         
-        # 计算详细指标
+        # Calculate detailed metrics
         accuracy = accuracy_score(y_true, y_pred)
         f1_weighted = f1_score(y_true, y_pred, average='weighted')
         f1_macro = f1_score(y_true, y_pred, average='macro')
@@ -623,46 +623,46 @@ class MILClassifier:
         with open(metrics_path, 'w', encoding='utf-8') as f:
             json.dump(metrics, f, indent=2, ensure_ascii=False)
         
-        # 计算和绘制AUROC/AUPRC（如果提供了预测概率）
+        # Calculate and plot AUROC/AUPRC (if prediction probabilities provided)
         if y_pred_proba is not None:
             self._plot_roc_prc_curves(fold, y_true, y_pred_proba, fold_name, fold_dir, metrics)
         
         return class_report, cm, metrics
     
     def _plot_roc_prc_curves(self, fold, y_true, y_pred_proba, fold_name, fold_dir, metrics):
-        """绘制ROC和PRC曲线"""
+        """Plot ROC and PRC curves"""
         try:
-            # 转换为numpy数组
+            # Convert to numpy arrays
             y_true = np.array(y_true)
             y_pred_proba = np.array(y_pred_proba)
             
-            # 对于多分类问题，需要进行二值化
+            # For multi-class problems, need to binarize
             n_classes = len(self.class_names)
             
             if n_classes == 2:
-                # 二分类情况
+                # Binary classification case
                 self._plot_binary_roc_prc(fold, y_true, y_pred_proba, fold_name, fold_dir, metrics)
             else:
-                # 多分类情况
+                # Multi-class case
                 self._plot_multiclass_roc_prc(fold, y_true, y_pred_proba, fold_name, fold_dir, metrics)
                 
         except Exception as e:
-            print(f"绘制ROC/PRC曲线时出错: {e}")
+            print(f"Error plotting ROC/PRC curves: {e}")
     
     def _plot_binary_roc_prc(self, fold, y_true, y_pred_proba, fold_name, fold_dir, metrics):
-        """绘制二分类的ROC和PRC曲线"""
-        # 使用正类的概率
+        """Plot ROC and PRC curves for binary classification"""
+        # Use positive class probability
         y_scores = y_pred_proba[:, 1]
         
-        # ROC曲线
+        # ROC curve
         fpr, tpr, _ = roc_curve(y_true, y_scores)
         roc_auc = auc(fpr, tpr)
         
-        # PRC曲线
+        # PRC curve
         precision, recall, _ = precision_recall_curve(y_true, y_scores)
         avg_precision = average_precision_score(y_true, y_scores)
         
-        # 绘制ROC曲线
+        # Plot ROC curve
         plt.figure(figsize=(12, 5))
         
         plt.subplot(1, 2, 1)
@@ -676,7 +676,7 @@ class MILClassifier:
         plt.legend(loc="lower right")
         plt.grid(True, alpha=0.3)
         
-        # 绘制PRC曲线
+        # Plot PRC curve
         plt.subplot(1, 2, 2)
         plt.plot(recall, precision, color='darkorange', lw=2, label=f'PRC curve (AP = {avg_precision:.3f})')
         plt.xlim([0.0, 1.0])
@@ -689,25 +689,25 @@ class MILClassifier:
         
         plt.tight_layout()
         
-        # 保存图片
+        # Save image
         roc_prc_path = fold_dir / f"fold_{fold+1}_{fold_name}_roc_prc_curves.png"
         plt.savefig(roc_prc_path, dpi=300, bbox_inches='tight')
         plt.close()
         
-        # 更新metrics
+        # Update metrics
         metrics['roc_auc'] = float(roc_auc)
         metrics['average_precision'] = float(avg_precision)
         
         print(f"  ROC AUC: {roc_auc:.4f}, Average Precision: {avg_precision:.4f}")
     
     def _plot_multiclass_roc_prc(self, fold, y_true, y_pred_proba, fold_name, fold_dir, metrics):
-        """绘制多分类的ROC和PRC曲线"""
+        """Plot ROC and PRC curves for multi-class classification"""
         n_classes = len(self.class_names)
         
-        # 二值化标签
+        # Binarize labels
         y_true_bin = label_binarize(y_true, classes=range(n_classes))
         
-        # 计算每个类别的ROC和PRC
+        # Calculate ROC and PRC for each class
         fpr = dict()
         tpr = dict()
         roc_auc = dict()
@@ -722,7 +722,7 @@ class MILClassifier:
             precision[i], recall[i], _ = precision_recall_curve(y_true_bin[:, i], y_pred_proba[:, i])
             avg_precision[i] = average_precision_score(y_true_bin[:, i], y_pred_proba[:, i])
         
-        # 计算macro-average ROC
+        # Calculate macro-average ROC
         all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
         mean_tpr = np.zeros_like(all_fpr)
         for i in range(n_classes):
@@ -732,20 +732,20 @@ class MILClassifier:
         tpr["macro"] = mean_tpr
         roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
         
-        # 计算macro-average precision
+        # Calculate macro-average precision
         avg_precision["macro"] = np.mean([avg_precision[i] for i in range(n_classes)])
         
-        # 绘制ROC曲线
+        # Plot ROC curves
         plt.figure(figsize=(15, 6))
         
         plt.subplot(1, 2, 1)
-        # 绘制每个类别的ROC曲线
+        # Plot ROC curve for each class
         colors = plt.cm.Set3(np.linspace(0, 1, n_classes))
         for i, color in zip(range(n_classes), colors):
             plt.plot(fpr[i], tpr[i], color=color, lw=2,
                     label=f'{self.class_names[i]} (AUC = {roc_auc[i]:.3f})')
         
-        # 绘制macro-average ROC曲线
+        # Plot macro-average ROC curve
         plt.plot(fpr["macro"], tpr["macro"], color='navy', linestyle=':', linewidth=3,
                 label=f'Macro-average (AUC = {roc_auc["macro"]:.3f})')
         
@@ -758,13 +758,13 @@ class MILClassifier:
         plt.legend(loc="lower right", fontsize='small')
         plt.grid(True, alpha=0.3)
         
-        # 绘制PRC曲线
+        # Plot PRC curves
         plt.subplot(1, 2, 2)
         for i, color in zip(range(n_classes), colors):
             plt.plot(recall[i], precision[i], color=color, lw=2,
                     label=f'{self.class_names[i]} (AP = {avg_precision[i]:.3f})')
         
-        # 绘制macro-average线
+        # Plot macro-average line
         plt.axhline(y=avg_precision["macro"], color='navy', linestyle=':', linewidth=3,
                    label=f'Macro-average (AP = {avg_precision["macro"]:.3f})')
         
@@ -778,12 +778,12 @@ class MILClassifier:
         
         plt.tight_layout()
         
-        # 保存图片
+        # Save image
         roc_prc_path = fold_dir / f"fold_{fold+1}_{fold_name}_roc_prc_curves.png"
         plt.savefig(roc_prc_path, dpi=300, bbox_inches='tight')
         plt.close()
         
-        # 保存详细的AUC和AP数据
+        # Save detailed AUC and AP data
         auc_ap_data = {
             'class_specific': {},
             'macro_averages': {
@@ -802,7 +802,7 @@ class MILClassifier:
         with open(auc_ap_path, 'w', encoding='utf-8') as f:
             json.dump(auc_ap_data, f, indent=2, ensure_ascii=False)
         
-        # 更新metrics
+        # Update metrics
         metrics['roc_auc_macro'] = float(roc_auc["macro"])
         metrics['average_precision_macro'] = float(avg_precision["macro"])
         metrics['roc_auc_per_class'] = {self.class_names[i]: float(roc_auc[i]) for i in range(n_classes)}
@@ -812,11 +812,11 @@ class MILClassifier:
     
     def train_kfold(self, k=5, num_epochs=100, batch_size=4, test_ratio=0.2):
         """
-        K折交叉验证训练
-        注意：由于MIL的内存需求，batch_size设置较小
+        K-fold cross-validation training
+        Note: Due to MIL memory requirements, batch_size is set small
         """
         
-        # 分离独立测试集
+        # Separate independent test set
         all_indices = list(range(len(self.dataset)))
         all_labels = [self.dataset.data_df.iloc[i]['encoded_label'] for i in all_indices]
         
@@ -828,11 +828,11 @@ class MILClassifier:
         
         train_val_labels = [all_labels[i] for i in train_val_indices]
         
-        print(f"数据分割:")
-        print(f"  训练+验证集: {len(train_val_indices)} 样本")
-        print(f"  独立测试集: {len(self.final_test_indices)} 样本")
+        print(f"Data split:")
+        print(f"  Training+Validation set: {len(train_val_indices)} samples")
+        print(f"  Independent test set: {len(self.final_test_indices)} samples")
         
-        # K折分割
+        # K-fold split
         skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=42)
         fold_results = []
         all_fold_details = []
@@ -843,18 +843,18 @@ class MILClassifier:
             
             print(f"\n{'='*20} Fold {fold+1}/{k} - {self.mil_method.upper()} {'='*20}")
             
-            # 创建数据加载器
+            # Create data loaders
             train_subset = torch.utils.data.Subset(self.dataset, train_idx)
             val_subset = torch.utils.data.Subset(self.dataset, val_idx)
             
-            # 设置训练模式
+            # Set training mode
             self.dataset.set_training_mode(True)
             train_loader = DataLoader(
                 train_subset, 
                 batch_size=batch_size, 
                 shuffle=True,
                 collate_fn=self.collate_fn,
-                num_workers=0  # MIL通常设置为0避免多进程问题
+                num_workers=0  # MIL usually set to 0 to avoid multi-process issues
             )
             
             self.dataset.set_training_mode(False)
@@ -866,10 +866,10 @@ class MILClassifier:
                 num_workers=0
             )
             
-            # 创建模型
+            # Create model
             model = self.create_model()
             
-            # 计算类别权重
+            # Calculate class weights
             train_labels = [all_labels[i] for i in train_idx]
             class_weights = compute_class_weight(
                 'balanced', 
@@ -878,20 +878,20 @@ class MILClassifier:
             )
             class_weights = torch.FloatTensor(class_weights).to(self.device)
             
-            # 损失函数和优化器
+            # Loss function and optimizer
             criterion = nn.CrossEntropyLoss(weight=class_weights)
             optimizer = optim.AdamW(model.parameters(), lr=0.0001, weight_decay=0.01)
             scheduler = optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer, mode='max', factor=0.5, patience=10
             )
             
-            # 训练循环
+            # Training loop
             best_val_f1 = 0
             patience = 0
             max_patience = 15
             
             for epoch in range(num_epochs):
-                # 训练阶段
+                # Training phase
                 model.train()
                 train_loss = 0
                 num_batches = 0
@@ -900,12 +900,12 @@ class MILClassifier:
                     optimizer.zero_grad()
                     batch_loss = 0
                     
-                    # 处理batch中的每个样本（因为patch数量不同）
+                    # Process each sample in batch (due to different patch counts)
                     for features, label in zip(batch_features, batch_labels):
                         features = features.to(self.device)
                         label = label.to(self.device).unsqueeze(0)
                         
-                        # 前向传播
+                        # Forward propagation
                         if self.mil_method == 'dsmil':
                             bag_logits, instance_logits, attention_weights = model(features)
                             loss = criterion(bag_logits, label)
@@ -923,7 +923,7 @@ class MILClassifier:
                     train_loss += batch_loss.item()
                     num_batches += 1
                 
-                # 验证阶段
+                # Validation phase
                 model.eval()
                 val_predictions = []
                 val_true = []
@@ -939,7 +939,7 @@ class MILClassifier:
                             else:
                                 bag_logits, _ = model(features)
                             
-                            # 获取预测概率
+                            # Get prediction probabilities
                             probabilities = F.softmax(bag_logits, dim=1)
                             _, predicted = bag_logits.max(1)
                             
@@ -947,21 +947,21 @@ class MILClassifier:
                             val_true.append(label.item())
                             val_probabilities.append(probabilities.cpu().numpy())
                 
-                # 计算指标
+                # Calculate metrics
                 val_f1 = f1_score(val_true, val_predictions, average='weighted')
                 scheduler.step(val_f1)
                 
                 if (epoch + 1) % 10 == 0:
                     print(f"Epoch {epoch+1:3d}: Train Loss: {train_loss/num_batches:.4f}, Val F1: {val_f1:.4f}")
                 
-                # 早停
+                # Early stopping
                 if val_f1 > best_val_f1:
                     best_val_f1 = val_f1
                     best_val_predictions = val_predictions.copy()
                     best_val_true = val_true.copy()
                     best_val_probabilities = [prob.copy() for prob in val_probabilities]
                     patience = 0
-                    # 将模型保存到结果文件夹中
+                    # Save model to results folder
                     model_save_path = self.results_dir / f'mil_{self.mil_method}_fold_{fold}.pth'
                     torch.save(model.state_dict(), model_save_path)
                 else:
@@ -970,13 +970,13 @@ class MILClassifier:
                         print(f"Early stopping at epoch {epoch+1}")
                         break
                 
-                # 内存清理
+                # Memory cleanup
                 if (epoch + 1) % 20 == 0:
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
             
-            # 保存该折结果（包含ROC/PRC曲线）
+            # Save fold results (including ROC/PRC curves)
             fold_report, fold_cm, fold_metrics = self.save_fold_results(
                 fold, best_val_true, best_val_predictions, "validation", 
                 y_pred_proba=np.array(best_val_probabilities).squeeze()
@@ -984,70 +984,70 @@ class MILClassifier:
             
             fold_results.append(best_val_f1)
             all_fold_details.append(fold_metrics)
-            print(f"Fold {fold+1} 最佳F1分数: {best_val_f1:.4f}")
+            print(f"Fold {fold+1} best F1 score: {best_val_f1:.4f}")
             
-            # 清理内存
+            # Cleanup memory
             del model, train_loader, val_loader
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         
-        # 输出结果
+        # Output results
         mean_f1 = np.mean(fold_results)
         std_f1 = np.std(fold_results)
         
         print(f"\n{'='*50}")
-        print(f"{self.mil_method.upper()} MIL K折交叉验证结果:")
-        print(f"平均F1分数: {mean_f1:.4f} ± {std_f1:.4f}")
-        print(f"各折结果: {fold_results}")
-        print(f"详细结果已保存到: {self.results_dir}")
+        print(f"{self.mil_method.upper()} MIL K-fold cross-validation results:")
+        print(f"Average F1 score: {mean_f1:.4f} ± {std_f1:.4f}")
+        print(f"Fold results: {fold_results}")
+        print(f"Detailed results saved to: {self.results_dir}")
         
         return fold_results
     
     def evaluate_final_test(self):
-        """在预先分离的独立测试集上评估最终性能"""
-        print(f"\n{'='*20} 最终测试集评估 - {self.mil_method.upper()} {'='*20}")
+        """Evaluate final performance on pre-separated independent test set"""
+        print(f"\n{'='*20} Final Test Set Evaluation - {self.mil_method.upper()} {'='*20}")
         
-        # 检查是否已经分离了测试集
+        # Check if test set has been separated
         if not hasattr(self, 'final_test_indices'):
-            print("错误: 请先运行 train_kfold 方法来分离测试集")
+            print("Error: Please run train_kfold method first to separate test set")
             return None
         
         test_idx = self.final_test_indices
-        print(f"测试集大小: {len(test_idx)} 样本")
+        print(f"Test set size: {len(test_idx)} samples")
         
-        # 创建测试数据加载器
+        # Create test data loader
         test_subset = torch.utils.data.Subset(self.dataset, test_idx)
         self.dataset.set_training_mode(False)
         test_loader = DataLoader(
             test_subset, 
-            batch_size=1,  # 测试时使用batch_size=1
+            batch_size=1,  # Use batch_size=1 during testing
             shuffle=False,
             collate_fn=self.collate_fn,
             num_workers=0
         )
         
-        # 加载所有fold的模型进行集成预测
+        # Load all fold models for ensemble prediction
         ensemble_predictions = []
         test_true = []
         test_filenames = []
         
-        # 收集所有测试样本的真实标签和文件名
+        # Collect true labels and filenames of all test samples
         for batch_features, batch_labels, batch_filenames in test_loader:
             for label, filename in zip(batch_labels, batch_filenames):
                 test_true.append(label.item())
                 test_filenames.append(filename)
         
-        # 对每个fold的模型进行预测
+        # Make predictions for each fold model
         fold_predictions = []
-        all_test_probabilities = []  # 用于保存测试集的预测概率
+        all_test_probabilities = []  # For saving test set prediction probabilities
         
-        for fold in range(5):  # 假设使用5折
+        for fold in range(5):  # Assuming 5 folds
             model_path = self.results_dir / f'mil_{self.mil_method}_fold_{fold}.pth'
             if model_path.exists():
-                print(f"加载模型: {model_path}")
+                print(f"Loading model: {model_path}")
                 
-                # 创建模型
+                # Create model
                 model = self.create_model()
                 model.load_state_dict(torch.load(model_path, map_location=self.device))
                 model.eval()
@@ -1065,7 +1065,7 @@ class MILClassifier:
                             else:
                                 bag_logits, _ = model(features)
                             
-                            # 获取概率和预测
+                            # Get probabilities and predictions
                             probabilities = F.softmax(bag_logits, dim=1)
                             _, predicted = bag_logits.max(1)
                             
@@ -1080,31 +1080,31 @@ class MILClassifier:
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
         
-        # 计算集成预测概率（用于ROC/PRC）
+        # Calculate ensemble prediction probabilities (for ROC/PRC)
         if ensemble_predictions:
             ensemble_test_probs = np.mean(ensemble_predictions, axis=0).squeeze()
             all_test_probabilities = ensemble_test_probs
         
         if not fold_predictions:
-            print("警告: 没有找到保存的模型，无法进行测试集评估")
+            print("Warning: No saved models found, cannot perform test set evaluation")
             return None
         
-        # 集成预测（多数投票或平均概率）
+        # Ensemble prediction (majority voting or average probability)
         if len(ensemble_predictions) > 1:
-            # 平均概率
+            # Average probabilities
             mean_probabilities = np.mean(ensemble_predictions, axis=0)
             final_predictions = np.argmax(mean_probabilities, axis=2).flatten()
         else:
-            # 只有一个fold的结果
+            # Only one fold result
             final_predictions = fold_predictions[0]
         
-        # 保存测试集结果（包含ROC/PRC曲线）
+        # Save test set results (including ROC/PRC curves)
         test_report, test_cm, test_metrics = self.save_fold_results(
             -1, test_true, final_predictions, "final_test",
             y_pred_proba=all_test_probabilities if len(all_test_probabilities) > 0 else None
         )
         
-        # 保存测试集详细信息
+        # Save test set detailed information
         test_details = pd.DataFrame({
             'filename': test_filenames,
             'true_label_idx': test_true,
@@ -1114,7 +1114,7 @@ class MILClassifier:
             'correct': np.array(test_true) == np.array(final_predictions)
         })
         
-        # 如果有多个fold，保存每个fold的预测结果
+        # If multiple folds, save each fold's prediction results
         if len(fold_predictions) > 1:
             for fold_idx, fold_preds in enumerate(fold_predictions):
                 test_details[f'fold_{fold_idx+1}_prediction'] = [self.class_names[i] for i in fold_preds]
@@ -1122,7 +1122,7 @@ class MILClassifier:
         test_details_path = self.results_dir / 'final_test_detailed_predictions.csv'
         test_details.to_csv(test_details_path, index=False)
         
-        # 保存总体结果（包含交叉验证和测试结果）
+        # Save overall results (including cross-validation and test results)
         overall_results = {
             'experiment_summary': {
                 'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1137,28 +1137,28 @@ class MILClassifier:
             }
         }
         
-        # 保存测试集结果
+        # Save test set results
         test_results_path = self.results_dir / 'final_test_results.json'
         with open(test_results_path, 'w', encoding='utf-8') as f:
             json.dump(overall_results, f, indent=2, ensure_ascii=False)
         
-        # 创建结果摘要
+        # Create results summary
         summary_text = f"""
-=== {self.mil_method.upper()} MIL 最终测试结果摘要 ===
-实验时间: {overall_results['experiment_summary']['timestamp']}
-模型类型: {overall_results['experiment_summary']['model_type']}
+=== {self.mil_method.upper()} MIL Final Test Results Summary ===
+Experiment Time: {overall_results['experiment_summary']['timestamp']}
+Model Type: {overall_results['experiment_summary']['model_type']}
 
-=== 独立测试集结果 ===
-测试集大小: {len(test_true)} 样本
-集成模型数: {len(fold_predictions)} 个
-测试F1分数: {test_metrics['f1_weighted']:.4f}
-测试准确率: {test_metrics['accuracy']:.4f}
-测试F1宏平均: {test_metrics['f1_macro']:.4f}
+=== Independent Test Set Results ===
+Test Set Size: {len(test_true)} samples
+Ensemble Models: {len(fold_predictions)}
+Test F1 Score: {test_metrics['f1_weighted']:.4f}
+Test Accuracy: {test_metrics['accuracy']:.4f}
+Test F1 Macro Average: {test_metrics['f1_macro']:.4f}
 
-=== 每类别详细结果 ===
+=== Per-Class Detailed Results ===
 """
         
-        # 添加每类别的详细结果
+        # Add per-class detailed results
         for class_name in self.class_names:
             class_idx = self.dataset.label_encoder.transform([class_name])[0]
             true_count = np.sum(np.array(test_true) == class_idx)
@@ -1171,14 +1171,14 @@ class MILClassifier:
                 precision = correct_count / pred_count if pred_count > 0 else 0
                 f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
                 
-                summary_text += f"{class_name}: 真实={true_count}, 预测={pred_count}, 正确={correct_count}, "
+                summary_text += f"{class_name}: True={true_count}, Predicted={pred_count}, Correct={correct_count}, "
                 summary_text += f"Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}\n"
         
-        summary_text += f"\n结果文件保存在: {self.results_dir}\n"
-        summary_text += f"详细预测结果: final_test_detailed_predictions.csv\n"
-        summary_text += f"模型文件: mil_{self.mil_method}_fold_*.pth\n"
+        summary_text += f"\nResult files saved to: {self.results_dir}\n"
+        summary_text += f"Detailed prediction results: final_test_detailed_predictions.csv\n"
+        summary_text += f"Model files: mil_{self.mil_method}_fold_*.pth\n"
         
-        # 保存摘要
+        # Save summary
         summary_path = self.results_dir / 'final_test_summary.txt'
         with open(summary_path, 'w', encoding='utf-8') as f:
             f.write(summary_text)
@@ -1187,63 +1187,63 @@ class MILClassifier:
         return test_metrics
 
 def main():
-    """主函数"""
+    """Main function"""
     
-    # 路径设置 - 与lightweight_wsi_mlp_classifier.py保持一致
+    # Path settings - consistent with lightweight_wsi_mlp_classifier.py
     csv_file = 'data/wsi_feature_labels.csv'
     feature_dir = 'data/WSI/features/h5_files'
     
-    # 检查文件存在性
+    # Check file existence
     if not os.path.exists(csv_file):
-        print(f"错误: CSV文件 {csv_file} 不存在!")
+        print(f"Error: CSV file {csv_file} does not exist!")
         return
     
     if not os.path.exists(feature_dir):
-        print(f"错误: 特征目录 {feature_dir} 不存在!")
+        print(f"Error: Feature directory {feature_dir} does not exist!")
         return
     
     print("\n" + "="*60)
-    print("MIL聚合分类器 - 基于CLAM特征")
+    print("MIL Aggregation Classifier - Based on CLAM Features")
     print("="*60)
     
-    # 测试所有MIL方法
+    # Test all MIL methods
     mil_methods = ['attention', 'dsmil', 'transmil']
     
     for method in mil_methods:
-        print(f"\n{'='*20} 测试 {method.upper()} MIL {'='*20}")
+        print(f"\n{'='*20} Testing {method.upper()} MIL {'='*20}")
         
         try:
-            # 创建分类器
+            # Create classifier
             classifier = MILClassifier(csv_file, feature_dir, mil_method=method)
             
-            # 训练
+            # Train
             fold_results = classifier.train_kfold(
                 k=5, 
-                num_epochs=50,  # MIL通常需要更多epoch
-                batch_size=2,   # 由于内存限制，使用较小batch
+                num_epochs=50,  # MIL usually requires more epochs
+                batch_size=2,   # Use smaller batch due to memory constraints
                 test_ratio=0.2
             )
             
-            print(f"\n✅ {method.upper()} MIL 交叉验证训练完成!")
+            print(f"\n✅ {method.upper()} MIL cross-validation training completed!")
             
-            # 在独立测试集上评估
-            print(f"\n{'='*30} 独立测试集评估 {'='*30}")
+            # Evaluate on independent test set
+            print(f"\n{'='*30} Independent Test Set Evaluation {'='*30}")
             final_test_results = classifier.evaluate_final_test()
             
             if final_test_results:
-                print(f"\n🎯 {method.upper()} MIL 最终测试结果:")
-                print(f"   测试F1分数: {final_test_results['f1_weighted']:.4f}")
-                print(f"   测试准确率: {final_test_results['accuracy']:.4f}")
+                print(f"\n🎯 {method.upper()} MIL final test results:")
+                print(f"   Test F1 score: {final_test_results['f1_weighted']:.4f}")
+                print(f"   Test accuracy: {final_test_results['accuracy']:.4f}")
             
-            print(f"\n📁 完整结果保存在: {classifier.results_dir}")
-            print(f"📊 包含模型文件: mil_{method}_fold_*.pth")
+            print(f"\n📁 Complete results saved to: {classifier.results_dir}")
+            print(f"📊 Includes model files: mil_{method}_fold_*.pth")
             
         except Exception as e:
-            print(f"❌ {method.upper()} MIL 训练失败: {e}")
+            print(f"❌ {method.upper()} MIL training failed: {e}")
             continue
     
-    print(f"\n🎉 所有MIL方法测试完成!")
-    print(f"📊 查看各自results目录获取详细结果")
+    print(f"\n🎉 All MIL method testing completed!")
+    print(f"📊 Check respective results directories for detailed results")
 
 if __name__ == "__main__":
     main()

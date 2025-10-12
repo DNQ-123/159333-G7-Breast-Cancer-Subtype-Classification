@@ -1,24 +1,24 @@
 # -*- coding: utf-8 -*-
 """
-RandomForest 五亚型分类（增强版）
+RandomForest Five-Subtype Classification (Enhanced Version)
 ——————————————————————————————————
-在原版基础上增加：
-1) Focal weighting（approx. focal loss via two-pass sample weights）
+Additions to the original version:
+1) Focal weighting (approx. focal loss via two-pass sample weights)
    - base_gamma
-   - two-pass 机制（先获得训练集概率，再构造 focal 权重，最后带权重重新训练）
+   - two-pass mechanism (first obtain training set probabilities, then construct focal weights, finally retrain with weights)
 2) Loss Function Parameters
-   - Class-specific Boost Factor（按类别名 JSON 指定）
-   - rarity_multiplier（基于训练集频次的稀有度放大）
-3) Distance Loss Thresholds（概率边距阈值）
-   - margin_threshold & margin_weight（对“p_true - max_other < 阈值”的样本加权）
-4) Model Class Weights（传递给 sklearn RandomForest 的 class_weight）
-   - balanced / balanced_subsample / 自定义 JSON / 关闭
+   - Class-specific Boost Factor (specified by class name JSON)
+   - rarity_multiplier (rarity amplification based on training set frequency)
+3) Distance Loss Thresholds (probability margin thresholds)
+   - margin_threshold & margin_weight (weight samples where "p_true - max_other < threshold")
+4) Model Class Weights (class_weight passed to sklearn RandomForest)
+   - balanced / balanced_subsample / custom JSON / off
 
-运行： python RandomForest_plus.py
-依赖：scikit-learn, pandas, numpy, seaborn, matplotlib, h5py, joblib
+Run: python RandomForest_plus.py
+Dependencies: scikit-learn, pandas, numpy, seaborn, matplotlib, h5py, joblib
 
 
-- 随机森林没有显式“损失函数”，增强以 **sample_weight** 与 **class_weight** 的形式注入。
+- Random Forest doesn't have an explicit "loss function", enhancements are injected via **sample_weight** and **class_weight**.
 
 """
 import warnings, os, json, joblib, math
@@ -48,43 +48,43 @@ RANDOM_STATE = 42
 np.random.seed(RANDOM_STATE)
 
 # -------------------------------------------------------
-# 1. 路径（按需修改）
+# 1. Paths (modify as needed)
 # -------------------------------------------------------
 CSV_PATH = r'F:\Massey\Mammon2\data\wsi_feature_labels.csv'
 H5_ROOT  = r'F:\massey\Mammon2'
-OUT_DIR  = './outputs_rf'  # 输出根目录
+OUT_DIR  = './outputs_rf'  # Output root directory
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # -------------------------------------------------------
-# 1.1 可调参数 & 建议范围（可直接改数值）
+# 1.1 Tunable Parameters & Recommended Ranges (can directly change values)
 # -------------------------------------------------------
-# —— Focal（建议 1.0~3.0，常用 2.0）
+# —— Focal (recommended 1.0~3.0, commonly 2.0)
 ENABLE_FOCAL      = True
 BASE_GAMMA        = 1.8
-FOCAL_TWO_PASS    = True   # True: 先拟合基础模型获取训练集概率，再以此生成 focal 权重并重训
+FOCAL_TWO_PASS    = True   # True: first fit base model to get training set probabilities, then generate focal weights and retrain
 
-# —— Class Weights（传给 RF 的 class_weight）
+# —— Class Weights (class_weight passed to RF)
 #   'none' | 'balanced' | 'balanced_subsample' | 'custom'
 CLASS_WEIGHT_MODE = 'balanced_subsample'
-CLASS_WEIGHT_JSON = ''     # 当 mode='custom' 时，形如 '{"Luminal A":0.7, "HER2-enriched":1.4}'
+CLASS_WEIGHT_JSON = ''     # When mode='custom', format like '{"Luminal A":0.7, "HER2-enriched":1.4}'
 
-# —— Class-specific Boost（建议 1.0~2.0，小步增）
+# —— Class-specific Boost (recommended 1.0~2.0, small increments)
 CLASS_BOOST_JSON  = '{"HER2-enriched":0.8, "Basal-like":1.0, "Luminal B":1.0}'
 
-# —— Rarity Multiplier（0.0~2.0，起步 0.5）
+# —— Rarity Multiplier (0.0~2.0, start with 0.5)
 RARITY_MULTIPLIER = 1.2
 
-# —— 距离阈值（概率边距），margin 0.1~0.6，权重 0.1~0.6
+# —— Distance Thresholds (probability margin), margin 0.1~0.6, weight 0.1~0.6
 ENABLE_MARGIN     = True
 MARGIN_THRESHOLD  = 0.20
 MARGIN_WEIGHT     = 0.40
 
-# —— 其他：搜索迭代与CV折数
+# —— Others: search iterations and CV folds
 N_SPLITS_CV       = 5
 RANDOM_SEARCH_ITERS = 40
 
 # -------------------------------------------------------
-# 2. 读取+聚合
+# 2. Reading + Aggregation
 # -------------------------------------------------------
 def aggregate_h5(path):
     with h5py.File(path, 'r') as f:
@@ -98,9 +98,9 @@ def build_Xy(csv_path, h5_root):
     df = df[df['Label'].isin(keep)].reset_index(drop=True)
 
     feats, labels = [], []
-    for _, row in tqdm(df.iterrows(), total=len(df), desc='读取+聚合'):
+    for _, row in tqdm(df.iterrows(), total=len(df), desc='Reading+Aggregating'):
         rel = os.path.normpath(str(row['File_Path']).strip())
-        # 兼容相对/绝对
+        # Compatible with relative/absolute
         cand = [os.path.join(h5_root, rel), rel]
         fpath = None
         for c in cand:
@@ -108,17 +108,17 @@ def build_Xy(csv_path, h5_root):
                 fpath = c
                 break
         if fpath is None:
-            raise FileNotFoundError(f"找不到H5: {cand}")
+            raise FileNotFoundError(f"Cannot find H5: {cand}")
         feats.append(aggregate_h5(fpath))
         labels.append(row['Label'])
     return np.array(feats), np.array(labels)
 
-print('正在读取并聚合 H5 文件 …')
+print('Reading and aggregating H5 files ...')
 X, y = build_Xy(CSV_PATH, H5_ROOT)
-print(f'完成！样本数={X.shape[0]}, 特征维数={X.shape[1]}')
+print(f'Done! Sample count={X.shape[0]}, Feature dimension={X.shape[1]}')
 
 # -------------------------------------------------------
-# 3. 80 / 20 分层拆分
+# 3. 80 / 20 Stratified Split
 # -------------------------------------------------------
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
@@ -129,10 +129,10 @@ y_test_enc  = le.transform(y_test)
 label_names = le.classes_
 num_classes = len(label_names)
 print(f'Train: {X_train.shape[0]}  Test: {X_test.shape[0]}')
-print('类别映射:', dict(zip(le.classes_, le.transform(le.classes_))))
+print('Class mapping:', dict(zip(le.classes_, le.transform(le.classes_))))
 
 # -------------------------------------------------------
-# 4. 构建 class_weight（给 RF） & 样本权重（two-pass）
+# 4. Construct class_weight (for RF) & sample weights (two-pass)
 # -------------------------------------------------------
 # 4.1 class_weight for RF
 rf_class_weight = None
@@ -145,12 +145,12 @@ elif CLASS_WEIGHT_MODE == 'custom':
         cw = json.loads(CLASS_WEIGHT_JSON) if CLASS_WEIGHT_JSON else {}
     except Exception:
         cw = {}
-    # 将类名映射到索引
+    # Map class names to indices
     rf_class_weight = {le.transform([k])[0]: float(v) for k, v in cw.items() if k in le.classes_}
 else:
     rf_class_weight = None
 
-# 4.2 rarity & boost（先基于训练集频次）
+# 4.2 rarity & boost (first based on training set frequency)
 train_counts = Counter(y_train_enc)
 mean_freq = np.mean([train_counts.get(i, 1) for i in range(num_classes)])
 rarity_vec = np.array([max(mean_freq / max(train_counts.get(i, 1), 1), 1.0) for i in range(num_classes)], dtype=float)
@@ -161,39 +161,39 @@ except Exception:
     boost_map = {}
 boost_vec = np.array([float(boost_map.get(lbl, 1.0)) for lbl in label_names], dtype=float)
 
-# 4.3 第一阶段：可选 focal 先验（用 OOF/IS 概率估计）
+# 4.3 Phase 1: Optional focal prior (using OOF/IS probability estimation)
 base_proba = None
 if FOCAL_TWO_PASS and ENABLE_FOCAL:
-    print("\n[Pass-1] 获取训练集概率用于 focal 权重 …")
-    # 用一个中等配置模型做 OOF 概率估计
+    print("\n[Pass-1] Getting training set probabilities for focal weights ...")
+    # Use a medium configuration model for OOF probability estimation
     base_rf = RandomForestClassifier(
         n_estimators=300, max_depth=None, n_jobs=-1,
         random_state=RANDOM_STATE, oob_score=False,
         class_weight=rf_class_weight
     )
-    # 采用 cross_val_predict 产生 out-of-fold 概率，避免泄露
+    # Use cross_val_predict to generate out-of-fold probabilities, avoid leakage
     cv_oof = StratifiedKFold(n_splits=N_SPLITS_CV, shuffle=True, random_state=RANDOM_STATE)
     base_proba = cross_val_predict(
         base_rf, X_train, y_train_enc, cv=cv_oof, method='predict_proba', n_jobs=-1, verbose=0
     )
-    # 如果某折没有类，sklearn可能返回nan，后续会处理
+    # If a fold has no class, sklearn may return nan, will handle later
 
-# 4.4 组装样本级权重（供 RandomizedSearchCV & 后续拟合使用）
+# 4.4 Assemble sample-level weights (for RandomizedSearchCV & subsequent fitting)
 sample_weight_train = np.ones(len(y_train_enc), dtype=float)
 
 # (a) class-specific boost
 boost_per_sample = boost_vec[y_train_enc]
 sample_weight_train *= boost_per_sample
 
-# (b) rarity multiplier（线性形式：1 + r_mult * (rarity - 1)）
+# (b) rarity multiplier (linear form: 1 + r_mult * (rarity - 1))
 if RARITY_MULTIPLIER > 0:
     rarity_per_sample = rarity_vec[y_train_enc]
     sample_weight_train *= (1.0 + RARITY_MULTIPLIER * (rarity_per_sample - 1.0))
 
-# (c) focal weighting（基于 OOF 概率），w_focal = (1 - p_t) ** gamma
+# (c) focal weighting (based on OOF probability), w_focal = (1 - p_t) ** gamma
 if ENABLE_FOCAL:
     if base_proba is None:
-        # 不做两阶段，则基于先验近似：p_t ≈ 类先验
+        # Without two-stage, approximate based on prior: p_t ≈ class prior
         prior = np.array([train_counts.get(i, 1) for i in range(num_classes)], dtype=float)
         prior /= prior.sum()
         p_t = prior[y_train_enc]
@@ -202,11 +202,11 @@ if ENABLE_FOCAL:
     focal_mult = (1.0 - p_t) ** BASE_GAMMA
     sample_weight_train *= focal_mult
 
-# (d) 距离阈值（概率边距）
+# (d) Distance threshold (probability margin)
 if ENABLE_MARGIN:
     if base_proba is None:
-        # 若无概率，跳过；也可改为先训练一个小模型拿 in-sample 概率
-        # 这里保守处理：不应用边距项
+        # If no probabilities, skip; could also train a small model to get in-sample probabilities
+        # Conservative approach: don't apply margin term
         pass
     else:
         pt = np.clip(base_proba[np.arange(len(y_train_enc)), y_train_enc], 1e-6, 1-1e-6)
@@ -218,11 +218,11 @@ if ENABLE_MARGIN:
         margin_mult = 1.0 + MARGIN_WEIGHT * (shortfall / max(MARGIN_THRESHOLD, 1e-6))
         sample_weight_train *= margin_mult
 
-# (e) 裁剪，避免极端权重
+# (e) Clipping to avoid extreme weights
 sample_weight_train = np.clip(sample_weight_train, 0.05, 50.0)
 
 # -------------------------------------------------------
-# 5. 模型 & 参数空间
+# 5. Model & Parameter Space
 # -------------------------------------------------------
 rf = RandomForestClassifier(
     n_estimators=400,
@@ -242,7 +242,7 @@ param_dist = {
 }
 
 # -------------------------------------------------------
-# 6. 训练集内 5 折随机搜索（若启用 sample_weight，会在各折自动切片传入）
+# 6. 5-Fold Random Search within Training Set (if sample_weight enabled, will be automatically sliced and passed in each fold)
 # -------------------------------------------------------
 cv = StratifiedKFold(n_splits=N_SPLITS_CV, shuffle=True, random_state=RANDOM_STATE)
 random_search = RandomizedSearchCV(
@@ -256,13 +256,13 @@ random_search = RandomizedSearchCV(
     random_state=RANDOM_STATE
 )
 
-print("\n[Fast Search] RandomizedSearchCV running …")
+print("\n[Fast Search] RandomizedSearchCV running ...")
 random_search.fit(X_train, y_train_enc, sample_weight=sample_weight_train)
 print("\nBest params:", random_search.best_params_)
 print("Best CV balanced_acc:", random_search.best_score_)
 
 # -------------------------------------------------------
-# 7. 详细的 5 折交叉验证评估（逐折输出，携带样本权重）
+# 7. Detailed 5-Fold Cross-Validation Evaluation (output per fold, with sample weights)
 # -------------------------------------------------------
 best_model = random_search.best_estimator_
 
@@ -291,14 +291,14 @@ for fold_idx, (train_idx, val_idx) in enumerate(cv.split(X_train, y_train_enc), 
     fold_results.append({'fold': fold_idx, 'accuracy': fold_acc, 'f1_score': fold_f1})
     print(f"Fold {fold_idx} - Accuracy: {fold_acc:.4f}, F1: {fold_f1:.4f}")
 
-    # 分类报告
+    # Classification report
     fold_report = classification_report(
         y_fold_val, y_fold_pred, target_names=label_names,
         output_dict=True, zero_division=0)
     pd.DataFrame(fold_report).transpose().to_csv(
         os.path.join(results_dir, "cv_folds", f"fold_{fold_idx}_classification_report.csv"))
 
-    # 混淆矩阵
+    # Confusion matrix
     fold_cm = confusion_matrix(y_fold_val, y_fold_pred)
     fold_cm_df = pd.DataFrame(fold_cm, index=label_names, columns=label_names)
     plt.figure(figsize=(8, 6))
@@ -311,29 +311,29 @@ for fold_idx, (train_idx, val_idx) in enumerate(cv.split(X_train, y_train_enc), 
     plt.close()
 
 # -------------------------------------------------------
-# 8. 在全部训练集上重训 + 测试评估（携带样本权重）
+# 8. Retrain on Full Training Set + Test Evaluation (with sample weights)
 # -------------------------------------------------------
 final_model = clone(best_model)
 final_model.fit(X_train, y_train_enc, sample_weight=sample_weight_train)
 
-# 保存模型
+# Save model
 joblib.dump(final_model, os.path.join(results_dir, 'pam50_rf_model.pkl'))
 joblib.dump(le,          os.path.join(results_dir, 'label_encoder.pkl'))
-# 兼容名
+# Compatible name
 joblib.dump(final_model, os.path.join(OUT_DIR, 'rf_best.pkl'))
 
-# 测试集
+# Test set
 y_pred_test = final_model.predict(X_test)
 acc_test = accuracy_score(y_test_enc, y_pred_test)
 f1w_test  = f1_score(y_test_enc, y_pred_test, average='weighted')
 print(f"\n=== Final Test ===\nAccuracy={acc_test:.4f}  F1(w)={f1w_test:.4f}")
 
-# 分类报告
+# Classification report
 report = classification_report(y_test_enc, y_pred_test, target_names=label_names,
                                output_dict=True, zero_division=0)
 pd.DataFrame(report).transpose().to_csv(os.path.join(results_dir, 'final_test_classification_report.csv'))
 
-# 混淆矩阵
+# Confusion matrix
 cm = confusion_matrix(y_test_enc, y_pred_test)
 cm_df = pd.DataFrame(cm, index=label_names, columns=label_names)
 plt.figure(figsize=(10, 8))
@@ -345,7 +345,7 @@ plt.savefig(os.path.join(results_dir, 'final_test_confusion_matrix.png'),
             dpi=300, bbox_inches='tight')
 plt.close()
 
-# 兼容性旧图
+# Compatibility old plot
 plt.figure(figsize=(5, 4))
 sns.heatmap(cm_df, annot=True, fmt='d', cmap='Blues', cbar=False)
 plt.title('Confusion Matrix (RF)')
@@ -355,9 +355,9 @@ plt.savefig(os.path.join(OUT_DIR, 'confusion_matrix.png'), dpi=220, bbox_inches=
 plt.close()
 
 # -------------------------------------------------------
-# 9. 重要性与分支信息
+# 9. Importance and Branch Information
 # -------------------------------------------------------
-# 特征重要性（如可用）
+# Feature importance (if available)
 if hasattr(final_model, 'feature_importances_'):
     importances = final_model.feature_importances_
     idx_top = np.argsort(importances)[::-1][:20]
@@ -368,7 +368,7 @@ if hasattr(final_model, 'feature_importances_'):
     })
     top_df.to_csv(os.path.join(results_dir, 'top20_features.csv'), index=False)
 
-# 保存分支信息（便于与多分支融合流水线兼容）
+# Save branch information (for compatibility with multi-branch fusion pipeline)
 branch_info = {
     'model': 'RandomForest(+focal/boost/rarity/margin/weights)',
     'class_names': list(map(str, label_names)),
@@ -390,7 +390,7 @@ with open(os.path.join(results_dir, 'rf_branch_info.json'), 'w', encoding='utf-8
     json.dump(branch_info, f, ensure_ascii=False, indent=2)
 
 # -------------------------------------------------------
-# 10. 结果文件汇总
+# 10. Result File Summary
 # -------------------------------------------------------
 pd.DataFrame(fold_results).to_csv(os.path.join(results_dir, "cv_results.csv"), index=False)
 
@@ -410,19 +410,19 @@ Margin: {ENABLE_MARGIN} (thr={MARGIN_THRESHOLD}, w={MARGIN_WEIGHT})
 with open(os.path.join(results_dir, 'cv_summary.txt'), 'w', encoding='utf-8') as f:
     f.write(cv_summary_content)
 
-# 训练过程指标（兼容下游）
+# Training process metrics (compatible with downstream)
 training_metrics_df = pd.DataFrame([
     {'epoch': i, 'train_loss': 'N/A', 'train_acc': 'N/A', 'val_loss': 'N/A', 'val_acc': r['accuracy'], 'val_f1': r['f1_score']}
     for i, r in enumerate(fold_results, 1)
 ])
 training_metrics_df.to_csv(os.path.join(results_dir, 'final_training_metrics.csv'), index=False)
 
-print(f"\n=== 所有结果已保存 ===")
-print(f"结果目录: {results_dir}")
-print(f"包含文件:")
+print(f"\n=== All results saved ===")
+print(f"Result directory: {results_dir}")
+print(f"Included files:")
 print(f"  - cv_results.csv / cv_summary.txt")
 print(f"  - final_test_classification_report.csv / final_test_confusion_matrix.png")
-print(f"  - cv_folds/  每折详细报告与混淆矩阵")
-print(f"  - rf_branch_info.json / top20_features.csv (如可用)")
+print(f"  - cv_folds/  detailed reports and confusion matrices for each fold")
+print(f"  - rf_branch_info.json / top20_features.csv (if available)")
 print(f"  - pam50_rf_model.pkl / label_encoder.pkl")
-print(f"根目录兼容文件: rf_best.pkl / confusion_matrix.png")
+print(f"Root directory compatible files: rf_best.pkl / confusion_matrix.png")

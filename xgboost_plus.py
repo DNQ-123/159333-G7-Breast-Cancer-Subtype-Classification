@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-XGBoost 五亚型分类（增强版）
-在原 RandomForest 基础上：
-1) 模型替换为 XGBoost
-2) 保留 focal / boost / rarity / margin 样本权重
-3) 使用 scale_pos_weight 处理类别不平衡
-4) 其余流程不变：RandomizedSearchCV、5 折 CV、测试集评估、结果保存
-运行： python xgboost_plus.py
-依赖：scikit-learn, pandas, numpy, seaborn, matplotlib, h5py, joblib, xgboost
+XGBoost Five-Subtype Classification (Enhanced Version)
+Based on the original RandomForest version:
+1) Model replaced with XGBoost
+2) Retain focal / boost / rarity / margin sample weights
+3) Use scale_pos_weight to handle class imbalance
+4) Rest of the process remains the same: RandomizedSearchCV, 5-fold CV, test set evaluation, result saving
+Run: python xgboost_plus.py
+Dependencies: scikit-learn, pandas, numpy, seaborn, matplotlib, h5py, joblib, xgboost
 """
 import warnings, os, json, joblib
 import numpy as np
@@ -28,7 +28,7 @@ import xgboost as xgb
 
 warnings.filterwarnings("ignore")
 
-print(xgb.__version__)        # 应 ≥1.6.0
+print(xgb.__version__)        # Should be ≥1.6.0
 print(xgb.build_info()) 
 
 # -------------------------------------------------------
@@ -38,48 +38,48 @@ RANDOM_STATE = 42
 np.random.seed(RANDOM_STATE)
 
 # -------------------------------------------------------
-# 1. 路径（按需修改）
+# 1. Paths (modify as needed)
 # -------------------------------------------------------
 CSV_PATH = r'G:\Massey\Mammon2\data\wsi_feature_labels.csv'
 H5_ROOT  = r'G:\massey\Mammon2'
-OUT_DIR  = './outputs_xgb'  # 输出根目录
+OUT_DIR  = './outputs_xgb'  # Output root directory
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # -------------------------------------------------------
-# 1.1 核心参数（沿用上一轮最优）
+# 1.1 Core Parameters (retain previous optimal settings)
 # -------------------------------------------------------
-# --- 模型选择 ---
+# --- Model Selection ---
 MODEL_NAME = 'XGBoost'
 
 # -------------------------------------------------------
-# 1.1 可调参数 & 建议范围（可直接改数值）
+# 1.1 Tunable Parameters & Recommended Ranges (can directly change values)
 # -------------------------------------------------------
-# —— Focal（建议 1.0~3.0，常用 2.0）
+# —— Focal (recommended 1.0~3.0, commonly 2.0)
 ENABLE_FOCAL      = False
-BASE_GAMMA        = 3.5    #Focal Loss的gamma值，越大越关注难样本
-FOCAL_TWO_PASS    = False   # True: 先拟合基础模型获取训练集概率，再以此生成 focal 权重并重训
+BASE_GAMMA        = 3.5    # Focal Loss gamma value, higher values focus more on hard samples
+FOCAL_TWO_PASS    = False   # True: first fit base model to get training set probabilities, then generate focal weights and retrain
 
-# —— Class Weights（传给 RF 的 class_weight）
+# —— Class Weights (passed to RF's class_weight)
 #   'none' | 'balanced' | 'balanced_subsample' | 'custom'
 CLASS_WEIGHT_MODE = 'balanced'
-CLASS_WEIGHT_JSON = ''     # 当 mode='custom' 时，形如 '{"Luminal A":0.7, "HER2-enriched":1.4}'
+CLASS_WEIGHT_JSON = ''     # When mode='custom', format like '{"Luminal A":0.7, "HER2-enriched":1.4}'
 
-# —— Class-specific Boost（建议 1.0~2.0，小步增）
+# —— Class-specific Boost (recommended 1.0~2.0, small increments)
 CLASS_BOOST_JSON = '{"HER2-enriched":1.5, "Basal-like":1.3, "Luminal B":1.2}'
-# —— Rarity Multiplier（0.0~2.0，起步 0.5）
+# —— Rarity Multiplier (0.0~2.0, start with 0.5)
 RARITY_MULTIPLIER = 1.2
 
-# —— 距离阈值（概率边距），margin 0.1~0.6，权重 0.1~0.6
+# —— Distance Thresholds (probability margin), margin 0.1~0.6, weight 0.1~0.6
 ENABLE_MARGIN     = True
-MARGIN_THRESHOLD  = 0.1   #概率边距阈值，越小越严格
-MARGIN_WEIGHT     = 0.50   #边距惩罚强度
+MARGIN_THRESHOLD  = 0.1   # Probability margin threshold, smaller values are stricter
+MARGIN_WEIGHT     = 0.50   # Margin penalty strength
 
-# —— 其他：搜索迭代与CV折数
+# —— Others: search iterations and CV folds
 N_SPLITS_CV       = 5
 RANDOM_SEARCH_ITERS = 40
 
 # -------------------------------------------------------
-# 2. 读取+聚合（复用原函数）
+# 2. Reading + Aggregation (reuse original functions)
 # -------------------------------------------------------
 def aggregate_h5(path):
     with h5py.File(path, 'r') as f:
@@ -93,9 +93,9 @@ def build_Xy(csv_path, h5_root):
     df = df[df['Label'].isin(keep)].reset_index(drop=True)
 
     feats, labels = [], []
-    for _, row in tqdm(df.iterrows(), total=len(df), desc='读取+聚合'):
+    for _, row in tqdm(df.iterrows(), total=len(df), desc='Reading+Aggregating'):
         rel = os.path.normpath(str(row['File_Path']).strip())
-        # 兼容相对/绝对
+        # Compatible with relative/absolute
         cand = [os.path.join(h5_root, rel), rel]
         fpath = None
         for c in cand:
@@ -103,17 +103,17 @@ def build_Xy(csv_path, h5_root):
                 fpath = c
                 break
         if fpath is None:
-            raise FileNotFoundError(f"找不到H5: {cand}")
+            raise FileNotFoundError(f"Cannot find H5: {cand}")
         feats.append(aggregate_h5(fpath))
         labels.append(row['Label'])
     return np.array(feats), np.array(labels)
 
-print('正在读取并聚合 H5 文件 …')
+print('Reading and aggregating H5 files ...')
 X, y = build_Xy(CSV_PATH, H5_ROOT)
-print(f'完成！样本数={X.shape[0]}, 特征维数={X.shape[1]}')
+print(f'Done! Sample count={X.shape[0]}, Feature dimension={X.shape[1]}')
 
 # -------------------------------------------------------
-# 3. 80 / 20 分层拆分
+# 3. 80 / 20 Stratified Split
 # -------------------------------------------------------
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
@@ -124,10 +124,10 @@ y_test_enc  = le.transform(y_test)
 label_names = le.classes_
 num_classes = len(label_names)
 print(f'Train: {X_train.shape[0]}  Test: {X_test.shape[0]}')
-print('类别映射:', dict(zip(le.classes_, le.transform(le.classes_))))
+print('Class mapping:', dict(zip(le.classes_, le.transform(le.classes_))))
 
 # -------------------------------------------------------
-# 4. 构造样本权重
+# 4. Construct Sample Weights
 # -------------------------------------------------------
 train_counts = Counter(y_train_enc)
 mean_freq = np.mean([train_counts.get(i, 1) for i in range(num_classes)])
@@ -136,10 +136,10 @@ rarity_vec = np.array([max(mean_freq / max(train_counts.get(i, 1), 1), 1.0) for 
 boost_map = json.loads(CLASS_BOOST_JSON) if CLASS_BOOST_JSON else {}
 boost_vec = np.array([float(boost_map.get(lbl, 1.0)) for lbl in label_names], dtype=float)
 
-# --- 获取训练集概率（two-pass focal） ---
+# --- Get training set probabilities (two-pass focal) ---
 base_proba = None
 if FOCAL_TWO_PASS and ENABLE_FOCAL:
-    print("\n[Pass-1] 获取训练集概率用于 focal 权重 …")
+    print("\n[Pass-1] Getting training set probabilities for focal weights ...")
     base_rf = xgb.XGBClassifier(
         n_estimators=300,
         max_depth=6,
@@ -152,7 +152,7 @@ if FOCAL_TWO_PASS and ENABLE_FOCAL:
         base_rf, X_train, y_train_enc, cv=cv_oof, method='predict_proba', n_jobs=-1, verbose=0
     )
 
-# --- 组装样本权重 ---
+# --- Assemble sample weights ---
 sample_weight_train = np.ones(len(y_train_enc), dtype=float)
 sample_weight_train *= boost_vec[y_train_enc]
 if RARITY_MULTIPLIER > 0:
@@ -182,33 +182,33 @@ if ENABLE_MARGIN and base_proba is not None:
 sample_weight_train = np.clip(sample_weight_train, 0.05, 30.0)
 
 # -------------------------------------------------------
-# 5. XGBoost 参数空间
+# 5. XGBoost Parameter Space
 # -------------------------------------------------------
 xgb_cls = xgb.XGBClassifier(
     n_estimators=1000,
     random_state=RANDOM_STATE,
     eval_metric='mlogloss',
-    tree_method='gpu_hist',      # ← 1. 用 GPU 建树
-    predictor='gpu_predictor',   # ← 2. 预测也放 GPU
-    n_jobs=1                     # ← 3. GPU 下 cpu 线程设 0 最快
+    tree_method='gpu_hist',      # ← 1. Use GPU for tree building
+    predictor='gpu_predictor',   # ← 2. Prediction also on GPU
+    n_jobs=1                     # ← 3. Set cpu threads to 0 for fastest GPU performance
 )
 
 param_dist = {
-    'n_estimators': [400,800],          # 控制树数量，太多训练时间长
-    'max_depth': [4, 8],                 # 较小深度能减少训练量
-    'learning_rate': [0.06, 0.08],       # 保持学习率适中
-    'subsample': [0.8],                  # 固定，减少组合
-    'colsample_bytree': [0.8],           # 固定，性能稳定
-    'gamma': [0, 0.1],                   # 控制分裂复杂度
-    'reg_alpha': [0, 0.1],               # L1 正则化
-    'reg_lambda': [0.8, 1.5],            # L2 正则化
-    'min_child_weight': [1, 3],          # 控制过拟合
+    'n_estimators': [400,800],          # Control number of trees, too many increases training time
+    'max_depth': [4, 8],                 # Smaller depth reduces training load
+    'learning_rate': [0.06, 0.08],       # Keep learning rate moderate
+    'subsample': [0.8],                  # Fixed, reduce combinations
+    'colsample_bytree': [0.8],           # Fixed, stable performance
+    'gamma': [0, 0.1],                   # Control split complexity
+    'reg_alpha': [0, 0.1],               # L1 regularization
+    'reg_lambda': [0.8, 1.5],            # L2 regularization
+    'min_child_weight': [1, 3],          # Control overfitting
     'tree_method': ['gpu_hist'],
     'predictor': ['gpu_predictor'],
 }
 
 # -------------------------------------------------------
-# 6. RandomizedSearchCV（带样本权重）
+# 6. RandomizedSearchCV (with sample weights)
 # -------------------------------------------------------
 cv = StratifiedKFold(n_splits=N_SPLITS_CV, shuffle=True, random_state=RANDOM_STATE)
 random_search = RandomizedSearchCV(
@@ -222,13 +222,13 @@ random_search = RandomizedSearchCV(
     random_state=RANDOM_STATE
 )
 
-print("\n[Fast Search] RandomizedSearchCV running …")
+print("\n[Fast Search] RandomizedSearchCV running ...")
 random_search.fit(X_train, y_train_enc, sample_weight=sample_weight_train)
 print("\nBest params:", random_search.best_params_)
 print("Best CV balanced_acc:", random_search.best_score_)
 
 # -------------------------------------------------------
-# 7. 5 折 CV 逐折评估（同原逻辑）
+# 7. 5-Fold CV Per-Fold Evaluation (same logic as original)
 # -------------------------------------------------------
 best_model = random_search.best_estimator_
 
@@ -257,14 +257,14 @@ for fold_idx, (train_idx, val_idx) in enumerate(cv.split(X_train, y_train_enc), 
     fold_results.append({'fold': fold_idx, 'accuracy': fold_acc, 'f1_score': fold_f1})
     print(f"Fold {fold_idx} - Accuracy: {fold_acc:.4f}, F1: {fold_f1:.4f}")
 
-    # 分类报告
+    # Classification report
     fold_report = classification_report(
         y_fold_val, y_fold_pred, target_names=label_names,
         output_dict=True, zero_division=0)
     pd.DataFrame(fold_report).transpose().to_csv(
         os.path.join(results_dir, "cv_folds", f"fold_{fold_idx}_classification_report.csv"))
 
-    # 混淆矩阵
+    # Confusion matrix
     fold_cm = confusion_matrix(y_fold_val, y_fold_pred)
     fold_cm_df = pd.DataFrame(fold_cm, index=label_names, columns=label_names)
     plt.figure(figsize=(8, 6))
@@ -277,30 +277,30 @@ for fold_idx, (train_idx, val_idx) in enumerate(cv.split(X_train, y_train_enc), 
     plt.close()
 
 # -------------------------------------------------------
-# 8. 全训练集重训 + 测试评估
+# 8. Full Training Set Retraining + Test Evaluation
 # -------------------------------------------------------
 final_model = best_model.__class__(**best_model.get_params())
 final_model.fit(X_train, y_train_enc,
                 sample_weight=sample_weight_train,
                 verbose=False)
 
-# 保存模型
+# Save model
 joblib.dump(final_model, os.path.join(results_dir, 'pam50_xgb_model.pkl'))
 joblib.dump(le,          os.path.join(results_dir, 'label_encoder.pkl'))
 joblib.dump(final_model, os.path.join(OUT_DIR, 'xgb_best.pkl'))
 
-# 测试集
+# Test set
 y_pred_test = final_model.predict(X_test)
 acc_test = accuracy_score(y_test_enc, y_pred_test)
 f1w_test = f1_score(y_test_enc, y_pred_test, average='weighted')
 print(f"\n=== Final Test ===\nAccuracy={acc_test:.4f}  F1(w)={f1w_test:.4f}")
 
-# 分类报告
+# Classification report
 report = classification_report(y_test_enc, y_pred_test, target_names=label_names,
                                output_dict=True, zero_division=0)
 pd.DataFrame(report).transpose().to_csv(os.path.join(results_dir, 'final_test_classification_report.csv'))
 
-# 混淆矩阵
+# Confusion matrix
 cm = confusion_matrix(y_test_enc, y_pred_test)
 cm_df = pd.DataFrame(cm, index=label_names, columns=label_names)
 plt.figure(figsize=(10, 8))
@@ -312,7 +312,7 @@ plt.savefig(os.path.join(results_dir, 'final_test_confusion_matrix.png'),
             dpi=300, bbox_inches='tight')
 plt.close()
 
-# 兼容旧图
+# Compatibility old plot
 plt.figure(figsize=(5, 4))
 sns.heatmap(cm_df, annot=True, fmt='d', cmap='Blues', cbar=False)
 plt.title('Confusion Matrix (XGBoost)')
@@ -322,7 +322,7 @@ plt.savefig(os.path.join(OUT_DIR, 'confusion_matrix.png'), dpi=220, bbox_inches=
 plt.close()
 
 # -------------------------------------------------------
-# 9. 特征重要性（XGB 原生）
+# 9. Feature Importance (XGB native)
 # -------------------------------------------------------
 importances = final_model.feature_importances_
 idx_top = np.argsort(importances)[::-1][:20]
@@ -334,7 +334,7 @@ top_df = pd.DataFrame({
 top_df.to_csv(os.path.join(results_dir, 'top20_features.csv'), index=False)
 
 # -------------------------------------------------------
-# 10. 分支信息
+# 10. Branch Information
 # -------------------------------------------------------
 branch_info = {
     'model': 'XGBoost(+focal/boost/rarity/margin/sample_weight)',
@@ -357,20 +357,41 @@ with open(os.path.join(results_dir, 'xgb_branch_info.json'), 'w', encoding='utf-
     json.dump(branch_info, f, ensure_ascii=False, indent=2)
 
 # -------------------------------------------------------
-# 11. 结果汇总
+# 11. Result Summary
 # -------------------------------------------------------
 pd.DataFrame(fold_results).to_csv(os.path.join(results_dir, "cv_results.csv"), index=False)
 
 cv_summary_content = f"""5-Fold Cross-Validation Summary - XGBoost(+enhanced)
 ========================================
+Architecture: XGBoost Classifier
+========================================
 Mean Accuracy: {np.mean(cv_accuracies):.4f} ± {np.std(cv_accuracies):.4f}
 Mean F1(w):   {np.mean(cv_f1_scores):.4f} ± {np.std(cv_f1_scores):.4f}
 Best Params:  {random_search.best_params_}
+Class Weight Mode: {CLASS_WEIGHT_MODE}
+Focal: {ENABLE_FOCAL} (gamma={BASE_GAMMA}, two-pass={FOCAL_TWO_PASS})
+Boost: {CLASS_BOOST_JSON}
+Rarity Multiplier: {RARITY_MULTIPLIER}
+Margin: {ENABLE_MARGIN} (thr={MARGIN_THRESHOLD}, w={MARGIN_WEIGHT})
 Test Accuracy: {acc_test:.4f}
 Test F1(w): {f1w_test:.4f}
 """
 with open(os.path.join(results_dir, 'cv_summary.txt'), 'w', encoding='utf-8') as f:
     f.write(cv_summary_content)
 
-print(f"\n=== 所有结果已保存 ===")
-print(f"结果目录: {results_dir}")
+# Training process metrics (compatible with downstream)
+training_metrics_df = pd.DataFrame([
+    {'epoch': i, 'train_loss': 'N/A', 'train_acc': 'N/A', 'val_loss': 'N/A', 'val_acc': r['accuracy'], 'val_f1': r['f1_score']}
+    for i, r in enumerate(fold_results, 1)
+])
+training_metrics_df.to_csv(os.path.join(results_dir, 'final_training_metrics.csv'), index=False)
+
+print(f"\n=== All results saved ===")
+print(f"Result directory: {results_dir}")
+print(f"Included files:")
+print(f"  - cv_results.csv / cv_summary.txt")
+print(f"  - final_test_classification_report.csv / final_test_confusion_matrix.png")
+print(f"  - cv_folds/  detailed reports and confusion matrices for each fold")
+print(f"  - xgb_branch_info.json / top20_features.csv")
+print(f"  - pam50_xgb_model.pkl / label_encoder.pkl")
+print(f"Root directory compatible files: xgb_best.pkl / confusion_matrix.png")

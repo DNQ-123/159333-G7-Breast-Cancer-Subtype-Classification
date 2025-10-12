@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-MLP分类器 - 基于CLAM特征数据集
-使用MLP对聚合后的特征进行分类，与MIL.py保持数据处理一致性
+MLP Classifier - Based on CLAM Feature Dataset
+Uses MLP to classify aggregated features, maintaining data processing consistency with MIL.py
 """
 
 import torch
@@ -33,20 +33,20 @@ warnings.filterwarnings('ignore')
 
 class MLPWSIDataset(Dataset):
     """
-    MLP WSI数据集 - 聚合patch-level特征为WSI-level特征
-    与MIL.py保持一致的数据加载方式，但对特征进行聚合
+    MLP WSI Dataset - Aggregates patch-level features into WSI-level features
+    Maintains consistent data loading method with MIL.py, but aggregates features
     """
     
     def __init__(self, csv_file, feature_dir, sample_types=['01', '11'], 
                  max_patches=2000, enable_augmentation=False, aggregation_method='mean'):
         """
         Args:
-            csv_file: CSV文件路径
-            feature_dir: 特征文件目录
-            sample_types: 样本类型
-            max_patches: 最大patch数量，用于内存控制
-            enable_augmentation: 是否启用数据增强
-            aggregation_method: 特征聚合方法 ('mean', 'max', 'mean_max')
+            csv_file: CSV file path
+            feature_dir: Feature file directory
+            sample_types: Sample types
+            max_patches: Maximum number of patches, for memory control
+            enable_augmentation: Whether to enable data augmentation
+            aggregation_method: Feature aggregation method ('mean', 'max', 'mean_max')
         """
         self.data_df = pd.read_csv(csv_file, dtype={'Sample_Type_Code': str})
         self.feature_dir = Path(feature_dir)
@@ -55,48 +55,48 @@ class MLPWSIDataset(Dataset):
         self.aggregation_method = aggregation_method
         self.training = False
         
-        # 数据过滤 - 与MIL.py保持一致
+        # Data filtering - consistent with MIL.py
         self.data_df = self.data_df[self.data_df['Sample_Type_Code'].isin(sample_types)]
         self.data_df = self.data_df[~self.data_df['Label'].isin(['Unknown', 'Metastatic'])]
         self.data_df = self.data_df.reset_index(drop=True)
         
-        # 标签编码
+        # Label encoding
         self.label_encoder = LabelEncoder()
         self.data_df['encoded_label'] = self.label_encoder.fit_transform(self.data_df['Label'])
         
-        # 检查数据完整性
+        # Check data integrity
         self._check_data_integrity()
         
-        # 预计算特征维度
+        # Precompute feature dimensions
         self.base_feature_dim = self._get_feature_dimension()
         self.feature_dim = self._get_aggregated_feature_dim()
         
-        print(f"MLP数据集初始化完成:")
-        print(f"  样本数量: {len(self.data_df)}")
-        print(f"  基础特征维度: {self.base_feature_dim}")
-        print(f"  聚合后特征维度: {self.feature_dim}")
-        print(f"  聚合方法: {self.aggregation_method}")
-        print(f"  最大patch数: {self.max_patches}")
+        print(f"MLP dataset initialization completed:")
+        print(f"  Number of samples: {len(self.data_df)}")
+        print(f"  Base feature dimension: {self.base_feature_dim}")
+        print(f"  Feature dimension after aggregation: {self.feature_dim}")
+        print(f"  Aggregation method: {self.aggregation_method}")
+        print(f"  Maximum number of patches: {self.max_patches}")
         self._print_label_distribution()
     
     def _check_data_integrity(self):
-        """检查数据完整性"""
+        """Check data integrity"""
         missing_files = []
-        print("检查数据文件完整性...")
+        print("Checking data file integrity...")
         
-        for idx in tqdm(range(min(len(self.data_df), 10)), desc="抽样检查"):
+        for idx in tqdm(range(min(len(self.data_df), 10)), desc="Sampling check"):
             filename = self.data_df.iloc[idx]['Filename']
             filepath = self.feature_dir / filename
             if not filepath.exists():
                 missing_files.append(filename)
         
         if missing_files:
-            print(f"警告: 发现 {len(missing_files)} 个缺失文件")
+            print(f"Warning: Found {len(missing_files)} missing files")
         else:
-            print("✅ 数据文件完整性检查通过")
+            print("✅ Data file integrity check passed")
     
     def _get_feature_dimension(self):
-        """获取基础特征维度"""
+        """Get base feature dimension"""
         for idx in range(min(5, len(self.data_df))):
             try:
                 filename = self.data_df.iloc[idx]['Filename']
@@ -111,35 +111,35 @@ class MLPWSIDataset(Dataset):
                         key = list(f.keys())[0]
                         features = f[key][:]
                 
-                # 处理特征形状
+                # Process feature shape
                 if features.ndim == 3:
                     features = features.squeeze(0)
                 
                 if features.ndim == 2:
-                    return features.shape[1]  # 返回特征维度
+                    return features.shape[1]  # Return feature dimension
                 else:
                     return len(features)
                     
             except Exception as e:
-                print(f"跳过文件 {filepath}: {e}")
+                print(f"Skipping file {filepath}: {e}")
                 continue
         
-        return 1024  # 默认CLAM特征维度
+        return 1024  # Default CLAM feature dimension
     
     def _get_aggregated_feature_dim(self):
-        """获取聚合后的特征维度"""
+        """Get feature dimension after aggregation"""
         if self.aggregation_method == 'mean':
             return self.base_feature_dim
         elif self.aggregation_method == 'max':
             return self.base_feature_dim
         elif self.aggregation_method == 'mean_max':
-            return self.base_feature_dim * 2  # mean和max拼接
+            return self.base_feature_dim * 2  # Concatenate mean and max
         else:
             return self.base_feature_dim
     
     def _print_label_distribution(self):
-        """打印标签分布"""
-        print("标签分布:")
+        """Print label distribution"""
+        print("Label distribution:")
         for label_name in self.label_encoder.classes_:
             count = np.sum(self.data_df['encoded_label'] == 
                           self.label_encoder.transform([label_name])[0])
@@ -150,7 +150,7 @@ class MLPWSIDataset(Dataset):
         return len(self.data_df)
     
     def _aggregate_features(self, features):
-        """聚合patch特征为WSI特征"""
+        """Aggregate patch features into WSI features"""
         if self.aggregation_method == 'mean':
             return np.mean(features, axis=0)
         elif self.aggregation_method == 'max':
@@ -160,7 +160,7 @@ class MLPWSIDataset(Dataset):
             max_features = np.max(features, axis=0)
             return np.concatenate([mean_features, max_features])
         else:
-            # 默认使用mean
+            # Default to mean
             return np.mean(features, axis=0)
     
     def __getitem__(self, idx):
@@ -170,7 +170,7 @@ class MLPWSIDataset(Dataset):
         
         try:
             with h5py.File(filepath, 'r') as f:
-                # 与MIL.py保持一致的特征加载方式
+                # Consistent feature loading method with MIL.py
                 if 'features' in f.keys():
                     features = f['features'][:]
                 elif 'feats' in f.keys():
@@ -179,53 +179,53 @@ class MLPWSIDataset(Dataset):
                     key = list(f.keys())[0]
                     features = f[key][:]
             
-            # 特征处理
+            # Feature processing
             if features.ndim == 3:
                 features = features.squeeze(0)
             
-            # 确保是2D特征
+            # Ensure it's 2D features
             if features.ndim == 1:
                 features = features.reshape(1, -1)
             
-            # 限制patch数量以控制内存
+            # Limit patch count to control memory
             if features.shape[0] > self.max_patches:
                 if self.training and self.enable_augmentation:
-                    # 训练时随机采样
+                    # Random sampling during training
                     indices = np.random.choice(features.shape[0], self.max_patches, replace=False)
                     features = features[indices]
                 else:
-                    # 验证/测试时选择前N个
+                    # Select first N during validation/testing
                     features = features[:self.max_patches]
             
-            # 数据增强（仅在训练时）
+            # Data augmentation (only during training)
             if self.enable_augmentation and self.training:
                 features = self._augment_patches(features)
             
-            # 聚合特征
+            # Aggregate features
             aggregated_features = self._aggregate_features(features)
             
-            # 转换为tensor
+            # Convert to tensor
             features_tensor = torch.FloatTensor(aggregated_features)
             label = torch.LongTensor([row['encoded_label']])[0]
             
             return features_tensor, label, filename
             
         except Exception as e:
-            print(f"加载文件错误 {filepath}: {e}")
-            # 返回默认特征
+            print(f"Error loading file {filepath}: {e}")
+            # Return default features
             zero_features = torch.zeros(self.feature_dim)
             label = torch.LongTensor([row['encoded_label']])[0]
             return zero_features, label, filename
     
     def _augment_patches(self, features):
-        """patch级别的数据增强"""
+        """Patch-level data augmentation"""
         if np.random.rand() < 0.3:
-            # 添加少量噪声
+            # Add small amount of noise
             noise = np.random.normal(0, 0.01, features.shape)
             features = features + noise
         
         if np.random.rand() < 0.2:
-            # patch级别的dropout
+            # Patch-level dropout
             num_patches = features.shape[0]
             keep_ratio = 0.9
             keep_patches = int(num_patches * keep_ratio)
@@ -236,17 +236,17 @@ class MLPWSIDataset(Dataset):
         return features
     
     def set_training_mode(self, training):
-        """设置训练模式"""
+        """Set training mode"""
         self.training = training
 
 # ===============================
-# MLP分类器模型
+# MLP Classifier Model
 # ===============================
 
 class MLPClassifierModel(nn.Module):
     """
-    MLP分类器模型
-    对聚合后的WSI特征进行分类
+    MLP Classifier Model
+    Classifies aggregated WSI features
     """
     
     def __init__(self, input_dim=1024, hidden_dims=[512, 256, 128], num_classes=5, dropout=0.25):
@@ -256,7 +256,7 @@ class MLPClassifierModel(nn.Module):
         self.hidden_dims = hidden_dims
         self.num_classes = num_classes
         
-        # 构建MLP层
+        # Build MLP layers
         layers = []
         prev_dim = input_dim
         
@@ -269,16 +269,16 @@ class MLPClassifierModel(nn.Module):
             ])
             prev_dim = hidden_dim
         
-        # 输出层
+        # Output layer
         layers.append(nn.Linear(prev_dim, num_classes))
         
         self.mlp = nn.Sequential(*layers)
         
-        # 权重初始化
+        # Weight initialization
         self._initialize_weights()
     
     def _initialize_weights(self):
-        """初始化权重"""
+        """Initialize weights"""
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.xavier_uniform_(m.weight)
@@ -291,20 +291,20 @@ class MLPClassifierModel(nn.Module):
     def forward(self, x):
         """
         Args:
-            x: [batch_size, input_dim] 聚合后的特征
+            x: [batch_size, input_dim] aggregated features
         Returns:
             logits: [batch_size, num_classes]
         """
         return self.mlp(x)
 
 # ===============================
-# MLP分类器主类
+# MLP Classifier Main Class
 # ===============================
 
 class MLPClassifier:
     """
-    MLP分类器主类
-    使用MLP对聚合后的WSI特征进行分类
+    MLP Classifier Main Class
+    Uses MLP to classify aggregated WSI features
     """
     
     def __init__(self, csv_file, feature_dir, aggregation_method='mean', device=None):
@@ -313,13 +313,13 @@ class MLPClassifier:
         self.aggregation_method = aggregation_method
         self.device = device if device else torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        print(f"使用设备: {self.device}")
-        print(f"特征聚合方法: {aggregation_method}")
+        print(f"Using device: {self.device}")
+        print(f"Feature aggregation method: {aggregation_method}")
         
-        # 创建数据集
+        # Create dataset
         self.dataset = MLPWSIDataset(
             csv_file, feature_dir, 
-            max_patches=1000,  # 控制内存使用
+            max_patches=1000,  # Control memory usage
             enable_augmentation=True,
             aggregation_method=aggregation_method
         )
@@ -328,17 +328,17 @@ class MLPClassifier:
         self.class_names = self.dataset.label_encoder.classes_
         self.feature_dim = self.dataset.feature_dim
         
-        # 创建结果保存目录
+        # Create results save directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.results_dir = Path(f"results_mlp_{aggregation_method}_{timestamp}")
         self.results_dir.mkdir(exist_ok=True)
-        print(f"结果将保存到: {self.results_dir}")
+        print(f"Results will be saved to: {self.results_dir}")
         
-        # 保存实验配置
+        # Save experiment configuration
         self.save_experiment_config()
     
     def save_experiment_config(self):
-        """保存实验配置信息"""
+        """Save experiment configuration information"""
         config = {
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'model_type': f'MLP_Classifier_{self.aggregation_method}',
@@ -357,7 +357,7 @@ class MLPClassifier:
             'class_distribution': {}
         }
         
-        # 添加类别分布信息
+        # Add class distribution information
         for label_name in self.class_names:
             count = np.sum(self.dataset.data_df['encoded_label'] == 
                           self.dataset.label_encoder.transform([label_name])[0])
@@ -366,15 +366,15 @@ class MLPClassifier:
                 'percentage': float(count / len(self.dataset) * 100)
             }
         
-        # 保存配置
+        # Save configuration
         config_path = self.results_dir / 'experiment_config.json'
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         
-        print(f"实验配置已保存: {config_path}")
+        print(f"Experiment configuration saved: {config_path}")
     
     def create_model(self, hidden_dims=[512, 256, 128]):
-        """创建MLP模型"""
+        """Create MLP model"""
         model = MLPClassifierModel(
             input_dim=self.feature_dim,
             hidden_dims=hidden_dims,
@@ -384,11 +384,11 @@ class MLPClassifier:
         return model.to(self.device)
     
     def save_fold_results(self, fold, y_true, y_pred, fold_name="validation", y_pred_proba=None):
-        """保存每折的结果"""
+        """Save results for each fold"""
         fold_dir = self.results_dir / f"fold_{fold+1}"
         fold_dir.mkdir(exist_ok=True)
         
-        # 分类报告
+        # Classification report
         class_report = classification_report(
             y_true, y_pred, 
             target_names=self.class_names,
@@ -396,7 +396,7 @@ class MLPClassifier:
             zero_division=0
         )
         
-        # 保存分类报告
+        # Save classification report
         report_path = fold_dir / f"fold_{fold+1}_{fold_name}_classification_report.json"
         with open(report_path, 'w', encoding='utf-8') as f:
             json.dump(class_report, f, indent=2, ensure_ascii=False)
@@ -405,13 +405,13 @@ class MLPClassifier:
         report_csv_path = fold_dir / f"fold_{fold+1}_{fold_name}_classification_report.csv"
         report_df.to_csv(report_csv_path, index=True)
         
-        # 混淆矩阵
+        # Confusion matrix
         cm = confusion_matrix(y_true, y_pred)
         cm_df = pd.DataFrame(cm, index=self.class_names, columns=self.class_names)
         cm_path = fold_dir / f"fold_{fold+1}_{fold_name}_confusion_matrix.csv"
         cm_df.to_csv(cm_path, index=True)
         
-        # 绘制混淆矩阵
+        # Plot confusion matrix
         plt.figure(figsize=(10, 8))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
                     xticklabels=self.class_names, yticklabels=self.class_names)
@@ -426,7 +426,7 @@ class MLPClassifier:
         plt.savefig(cm_plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         
-        # 计算详细指标
+        # Calculate detailed metrics
         accuracy = accuracy_score(y_true, y_pred)
         f1_weighted = f1_score(y_true, y_pred, average='weighted')
         f1_macro = f1_score(y_true, y_pred, average='macro')
@@ -446,46 +446,46 @@ class MLPClassifier:
         with open(metrics_path, 'w', encoding='utf-8') as f:
             json.dump(metrics, f, indent=2, ensure_ascii=False)
         
-        # 计算和绘制AUROC/AUPRC（如果提供了预测概率）
+        # Calculate and plot AUROC/AUPRC (if prediction probabilities provided)
         if y_pred_proba is not None:
             self._plot_roc_prc_curves(fold, y_true, y_pred_proba, fold_name, fold_dir, metrics)
         
         return class_report, cm, metrics
     
     def _plot_roc_prc_curves(self, fold, y_true, y_pred_proba, fold_name, fold_dir, metrics):
-        """绘制ROC和PRC曲线"""
+        """Plot ROC and PRC curves"""
         try:
-            # 转换为numpy数组
+            # Convert to numpy arrays
             y_true = np.array(y_true)
             y_pred_proba = np.array(y_pred_proba)
             
-            # 对于多分类问题，需要进行二值化
+            # For multi-class problems, need to binarize
             n_classes = len(self.class_names)
             
             if n_classes == 2:
-                # 二分类情况
+                # Binary classification case
                 self._plot_binary_roc_prc(fold, y_true, y_pred_proba, fold_name, fold_dir, metrics)
             else:
-                # 多分类情况
+                # Multi-class case
                 self._plot_multiclass_roc_prc(fold, y_true, y_pred_proba, fold_name, fold_dir, metrics)
                 
         except Exception as e:
-            print(f"绘制ROC/PRC曲线时出错: {e}")
+            print(f"Error plotting ROC/PRC curves: {e}")
     
     def _plot_binary_roc_prc(self, fold, y_true, y_pred_proba, fold_name, fold_dir, metrics):
-        """绘制二分类的ROC和PRC曲线"""
-        # 使用正类的概率
+        """Plot ROC and PRC curves for binary classification"""
+        # Use positive class probability
         y_scores = y_pred_proba[:, 1]
         
-        # ROC曲线
+        # ROC curve
         fpr, tpr, _ = roc_curve(y_true, y_scores)
         roc_auc = auc(fpr, tpr)
         
-        # PRC曲线
+        # PRC curve
         precision, recall, _ = precision_recall_curve(y_true, y_scores)
         avg_precision = average_precision_score(y_true, y_scores)
         
-        # 绘制ROC曲线
+        # Plot ROC curve
         plt.figure(figsize=(12, 5))
         
         plt.subplot(1, 2, 1)
@@ -499,7 +499,7 @@ class MLPClassifier:
         plt.legend(loc="lower right")
         plt.grid(True, alpha=0.3)
         
-        # 绘制PRC曲线
+        # Plot PRC curve
         plt.subplot(1, 2, 2)
         plt.plot(recall, precision, color='darkorange', lw=2, label=f'PRC curve (AP = {avg_precision:.3f})')
         plt.xlim([0.0, 1.0])
@@ -512,25 +512,25 @@ class MLPClassifier:
         
         plt.tight_layout()
         
-        # 保存图片
+        # Save image
         roc_prc_path = fold_dir / f"fold_{fold+1}_{fold_name}_roc_prc_curves.png"
         plt.savefig(roc_prc_path, dpi=300, bbox_inches='tight')
         plt.close()
         
-        # 更新metrics
+        # Update metrics
         metrics['roc_auc'] = float(roc_auc)
         metrics['average_precision'] = float(avg_precision)
         
         print(f"  ROC AUC: {roc_auc:.4f}, Average Precision: {avg_precision:.4f}")
     
     def _plot_multiclass_roc_prc(self, fold, y_true, y_pred_proba, fold_name, fold_dir, metrics):
-        """绘制多分类的ROC和PRC曲线"""
+        """Plot ROC and PRC curves for multi-class classification"""
         n_classes = len(self.class_names)
         
-        # 二值化标签
+        # Binarize labels
         y_true_bin = label_binarize(y_true, classes=range(n_classes))
         
-        # 计算每个类别的ROC和PRC
+        # Calculate ROC and PRC for each class
         fpr = dict()
         tpr = dict()
         roc_auc = dict()
@@ -545,7 +545,7 @@ class MLPClassifier:
             precision[i], recall[i], _ = precision_recall_curve(y_true_bin[:, i], y_pred_proba[:, i])
             avg_precision[i] = average_precision_score(y_true_bin[:, i], y_pred_proba[:, i])
         
-        # 计算macro-average ROC
+        # Calculate macro-average ROC
         all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
         mean_tpr = np.zeros_like(all_fpr)
         for i in range(n_classes):
@@ -555,20 +555,20 @@ class MLPClassifier:
         tpr["macro"] = mean_tpr
         roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
         
-        # 计算macro-average precision
+        # Calculate macro-average precision
         avg_precision["macro"] = np.mean([avg_precision[i] for i in range(n_classes)])
         
-        # 绘制ROC曲线
+        # Plot ROC curves
         plt.figure(figsize=(15, 6))
         
         plt.subplot(1, 2, 1)
-        # 绘制每个类别的ROC曲线
+        # Plot ROC curve for each class
         colors = plt.cm.Set3(np.linspace(0, 1, n_classes))
         for i, color in zip(range(n_classes), colors):
             plt.plot(fpr[i], tpr[i], color=color, lw=2,
                     label=f'{self.class_names[i]} (AUC = {roc_auc[i]:.3f})')
         
-        # 绘制macro-average ROC曲线
+        # Plot macro-average ROC curve
         plt.plot(fpr["macro"], tpr["macro"], color='navy', linestyle=':', linewidth=3,
                 label=f'Macro-average (AUC = {roc_auc["macro"]:.3f})')
         
@@ -581,13 +581,13 @@ class MLPClassifier:
         plt.legend(loc="lower right", fontsize='small')
         plt.grid(True, alpha=0.3)
         
-        # 绘制PRC曲线
+        # Plot PRC curves
         plt.subplot(1, 2, 2)
         for i, color in zip(range(n_classes), colors):
             plt.plot(recall[i], precision[i], color=color, lw=2,
                     label=f'{self.class_names[i]} (AP = {avg_precision[i]:.3f})')
         
-        # 绘制macro-average线
+        # Plot macro-average line
         plt.axhline(y=avg_precision["macro"], color='navy', linestyle=':', linewidth=3,
                    label=f'Macro-average (AP = {avg_precision["macro"]:.3f})')
         
@@ -601,12 +601,12 @@ class MLPClassifier:
         
         plt.tight_layout()
         
-        # 保存图片
+        # Save image
         roc_prc_path = fold_dir / f"fold_{fold+1}_{fold_name}_roc_prc_curves.png"
         plt.savefig(roc_prc_path, dpi=300, bbox_inches='tight')
         plt.close()
         
-        # 保存详细的AUC和AP数据
+        # Save detailed AUC and AP data
         auc_ap_data = {
             'class_specific': {},
             'macro_averages': {
@@ -625,7 +625,7 @@ class MLPClassifier:
         with open(auc_ap_path, 'w', encoding='utf-8') as f:
             json.dump(auc_ap_data, f, indent=2, ensure_ascii=False)
         
-        # 更新metrics
+        # Update metrics
         metrics['roc_auc_macro'] = float(roc_auc["macro"])
         metrics['average_precision_macro'] = float(avg_precision["macro"])
         metrics['roc_auc_per_class'] = {self.class_names[i]: float(roc_auc[i]) for i in range(n_classes)}
@@ -635,10 +635,10 @@ class MLPClassifier:
     
     def train_kfold(self, k=5, num_epochs=100, batch_size=32, test_ratio=0.2, hidden_dims=[512, 256, 128]):
         """
-        K折交叉验证训练
+        K-fold cross-validation training
         """
         
-        # 分离独立测试集
+        # Separate independent test set
         all_indices = list(range(len(self.dataset)))
         all_labels = [self.dataset.data_df.iloc[i]['encoded_label'] for i in all_indices]
         
@@ -650,11 +650,11 @@ class MLPClassifier:
         
         train_val_labels = [all_labels[i] for i in train_val_indices]
         
-        print(f"数据分割:")
-        print(f"  训练+验证集: {len(train_val_indices)} 样本")
-        print(f"  独立测试集: {len(self.final_test_indices)} 样本")
+        print(f"Data split:")
+        print(f"  Training+Validation set: {len(train_val_indices)} samples")
+        print(f"  Independent test set: {len(self.final_test_indices)} samples")
         
-        # K折分割
+        # K-fold split
         skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=42)
         fold_results = []
         all_fold_details = []
@@ -665,11 +665,11 @@ class MLPClassifier:
             
             print(f"\n{'='*20} Fold {fold+1}/{k} - MLP ({self.aggregation_method.upper()}) {'='*20}")
             
-            # 创建数据加载器
+            # Create data loaders
             train_subset = torch.utils.data.Subset(self.dataset, train_idx)
             val_subset = torch.utils.data.Subset(self.dataset, val_idx)
             
-            # 设置训练模式
+            # Set training mode
             self.dataset.set_training_mode(True)
             train_loader = DataLoader(
                 train_subset, 
@@ -686,10 +686,10 @@ class MLPClassifier:
                 num_workers=2
             )
             
-            # 创建模型
+            # Create model
             model = self.create_model(hidden_dims=hidden_dims)
             
-            # 计算类别权重
+            # Calculate class weights
             train_labels = [all_labels[i] for i in train_idx]
             class_weights = compute_class_weight(
                 'balanced', 
@@ -698,20 +698,20 @@ class MLPClassifier:
             )
             class_weights = torch.FloatTensor(class_weights).to(self.device)
             
-            # 损失函数和优化器
+            # Loss function and optimizer
             criterion = nn.CrossEntropyLoss(weight=class_weights)
             optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
             scheduler = optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer, mode='max', factor=0.5, patience=10
             )
             
-            # 训练循环
+            # Training loop
             best_val_f1 = 0
             patience = 0
             max_patience = 15
             
             for epoch in range(num_epochs):
-                # 训练阶段
+                # Training phase
                 model.train()
                 train_loss = 0
                 num_batches = 0
@@ -722,11 +722,11 @@ class MLPClassifier:
                     
                     optimizer.zero_grad()
                     
-                    # 前向传播
+                    # Forward propagation
                     logits = model(features)
                     loss = criterion(logits, labels)
                     
-                    # 反向传播
+                    # Backward propagation
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                     optimizer.step()
@@ -734,7 +734,7 @@ class MLPClassifier:
                     train_loss += loss.item()
                     num_batches += 1
                 
-                # 验证阶段
+                # Validation phase
                 model.eval()
                 val_predictions = []
                 val_true = []
@@ -747,7 +747,7 @@ class MLPClassifier:
                         
                         logits = model(features)
                         
-                        # 获取预测概率
+                        # Get prediction probabilities
                         probabilities = F.softmax(logits, dim=1)
                         _, predicted = logits.max(1)
                         
@@ -755,21 +755,21 @@ class MLPClassifier:
                         val_true.extend(labels.cpu().numpy())
                         val_probabilities.extend(probabilities.cpu().numpy())
                 
-                # 计算指标
+                # Calculate metrics
                 val_f1 = f1_score(val_true, val_predictions, average='weighted')
                 scheduler.step(val_f1)
                 
                 if (epoch + 1) % 10 == 0:
                     print(f"Epoch {epoch+1:3d}: Train Loss: {train_loss/num_batches:.4f}, Val F1: {val_f1:.4f}")
                 
-                # 早停
+                # Early stopping
                 if val_f1 > best_val_f1:
                     best_val_f1 = val_f1
                     best_val_predictions = val_predictions.copy()
                     best_val_true = val_true.copy()
                     best_val_probabilities = [prob.copy() for prob in val_probabilities]
                     patience = 0
-                    # 保存模型
+                    # Save model
                     model_save_path = self.results_dir / f'mlp_{self.aggregation_method}_fold_{fold}.pth'
                     torch.save(model.state_dict(), model_save_path)
                 else:
@@ -778,13 +778,13 @@ class MLPClassifier:
                         print(f"Early stopping at epoch {epoch+1}")
                         break
                 
-                # 内存清理
+                # Memory cleanup
                 if (epoch + 1) % 20 == 0:
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
             
-            # 保存该折结果（包含ROC/PRC曲线）
+            # Save fold results (including ROC/PRC curves)
             fold_report, fold_cm, fold_metrics = self.save_fold_results(
                 fold, best_val_true, best_val_predictions, "validation", 
                 y_pred_proba=np.array(best_val_probabilities)
@@ -792,39 +792,39 @@ class MLPClassifier:
             
             fold_results.append(best_val_f1)
             all_fold_details.append(fold_metrics)
-            print(f"Fold {fold+1} 最佳F1分数: {best_val_f1:.4f}")
+            print(f"Fold {fold+1} best F1 score: {best_val_f1:.4f}")
             
-            # 清理内存
+            # Cleanup memory
             del model, train_loader, val_loader
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         
-        # 输出结果
+        # Output results
         mean_f1 = np.mean(fold_results)
         std_f1 = np.std(fold_results)
         
         print(f"\n{'='*50}")
-        print(f"MLP ({self.aggregation_method.upper()}) K折交叉验证结果:")
-        print(f"平均F1分数: {mean_f1:.4f} ± {std_f1:.4f}")
-        print(f"各折结果: {fold_results}")
-        print(f"详细结果已保存到: {self.results_dir}")
+        print(f"MLP ({self.aggregation_method.upper()}) K-fold cross-validation results:")
+        print(f"Average F1 score: {mean_f1:.4f} ± {std_f1:.4f}")
+        print(f"Fold results: {fold_results}")
+        print(f"Detailed results saved to: {self.results_dir}")
         
         return fold_results
     
     def evaluate_final_test(self, hidden_dims=[512, 256, 128]):
-        """在预先分离的独立测试集上评估最终性能"""
-        print(f"\n{'='*20} 最终测试集评估 - MLP ({self.aggregation_method.upper()}) {'='*20}")
+        """Evaluate final performance on pre-separated independent test set"""
+        print(f"\n{'='*20} Final Test Set Evaluation - MLP ({self.aggregation_method.upper()}) {'='*20}")
         
-        # 检查是否已经分离了测试集
+        # Check if test set has been separated
         if not hasattr(self, 'final_test_indices'):
-            print("错误: 请先运行 train_kfold 方法来分离测试集")
+            print("Error: Please run train_kfold method first to separate test set")
             return None
         
         test_idx = self.final_test_indices
-        print(f"测试集大小: {len(test_idx)} 样本")
+        print(f"Test set size: {len(test_idx)} samples")
         
-        # 创建测试数据加载器
+        # Create test data loader
         test_subset = torch.utils.data.Subset(self.dataset, test_idx)
         self.dataset.set_training_mode(False)
         test_loader = DataLoader(
@@ -834,26 +834,26 @@ class MLPClassifier:
             num_workers=2
         )
         
-        # 加载所有fold的模型进行集成预测
+        # Load all fold models for ensemble prediction
         ensemble_predictions = []
         test_true = []
         test_filenames = []
         
-        # 收集所有测试样本的真实标签和文件名
+        # Collect true labels and filenames of all test samples
         for features, labels, filenames in test_loader:
             test_true.extend(labels.numpy())
             test_filenames.extend(filenames)
         
-        # 对每个fold的模型进行预测
+        # Make predictions for each fold model
         fold_predictions = []
         all_test_probabilities = []
         
-        for fold in range(5):  # 假设使用5折
+        for fold in range(5):  # Assuming 5 folds
             model_path = self.results_dir / f'mlp_{self.aggregation_method}_fold_{fold}.pth'
             if model_path.exists():
-                print(f"加载模型: {model_path}")
+                print(f"Loading model: {model_path}")
                 
-                # 创建模型
+                # Create model
                 model = self.create_model(hidden_dims=hidden_dims)
                 model.load_state_dict(torch.load(model_path, map_location=self.device))
                 model.eval()
@@ -867,7 +867,7 @@ class MLPClassifier:
                         
                         logits = model(features)
                         
-                        # 获取概率和预测
+                        # Get probabilities and predictions
                         probabilities = F.softmax(logits, dim=1)
                         _, predicted = logits.max(1)
                         
@@ -882,31 +882,31 @@ class MLPClassifier:
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
         
-        # 计算集成预测概率（用于ROC/PRC）
+        # Calculate ensemble prediction probabilities (for ROC/PRC)
         if ensemble_predictions:
             ensemble_test_probs = np.mean(ensemble_predictions, axis=0)
             all_test_probabilities = ensemble_test_probs
         
         if not fold_predictions:
-            print("警告: 没有找到保存的模型，无法进行测试集评估")
+            print("Warning: No saved models found, cannot perform test set evaluation")
             return None
         
-        # 集成预测（多数投票或平均概率）
+        # Ensemble prediction (majority voting or average probability)
         if len(ensemble_predictions) > 1:
-            # 平均概率
+            # Average probabilities
             mean_probabilities = np.mean(ensemble_predictions, axis=0)
             final_predictions = np.argmax(mean_probabilities, axis=1)
         else:
-            # 只有一个fold的结果
+            # Only one fold result
             final_predictions = fold_predictions[0]
         
-        # 保存测试集结果（包含ROC/PRC曲线）
+        # Save test set results (including ROC/PRC curves)
         test_report, test_cm, test_metrics = self.save_fold_results(
             -1, test_true, final_predictions, "final_test",
             y_pred_proba=all_test_probabilities if len(all_test_probabilities) > 0 else None
         )
         
-        # 保存测试集详细信息
+        # Save test set detailed information
         test_details = pd.DataFrame({
             'filename': test_filenames,
             'true_label_idx': test_true,
@@ -916,7 +916,7 @@ class MLPClassifier:
             'correct': np.array(test_true) == np.array(final_predictions)
         })
         
-        # 如果有多个fold，保存每个fold的预测结果
+        # If multiple folds, save each fold's prediction results
         if len(fold_predictions) > 1:
             for fold_idx, fold_preds in enumerate(fold_predictions):
                 test_details[f'fold_{fold_idx+1}_prediction'] = [self.class_names[i] for i in fold_preds]
@@ -924,7 +924,7 @@ class MLPClassifier:
         test_details_path = self.results_dir / 'final_test_detailed_predictions.csv'
         test_details.to_csv(test_details_path, index=False)
         
-        # 保存总体结果
+        # Save overall results
         overall_results = {
             'experiment_summary': {
                 'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -939,28 +939,28 @@ class MLPClassifier:
             }
         }
         
-        # 保存测试集结果
+        # Save test set results
         test_results_path = self.results_dir / 'final_test_results.json'
         with open(test_results_path, 'w', encoding='utf-8') as f:
             json.dump(overall_results, f, indent=2, ensure_ascii=False)
         
-        # 创建结果摘要
+        # Create results summary
         summary_text = f"""
-=== MLP ({self.aggregation_method.upper()}) 最终测试结果摘要 ===
-实验时间: {overall_results['experiment_summary']['timestamp']}
-模型类型: {overall_results['experiment_summary']['model_type']}
+=== MLP ({self.aggregation_method.upper()}) Final Test Results Summary ===
+Experiment Time: {overall_results['experiment_summary']['timestamp']}
+Model Type: {overall_results['experiment_summary']['model_type']}
 
-=== 独立测试集结果 ===
-测试集大小: {len(test_true)} 样本
-集成模型数: {len(fold_predictions)} 个
-测试F1分数: {test_metrics['f1_weighted']:.4f}
-测试准确率: {test_metrics['accuracy']:.4f}
-测试F1宏平均: {test_metrics['f1_macro']:.4f}
+=== Independent Test Set Results ===
+Test Set Size: {len(test_true)} samples
+Ensemble Models: {len(fold_predictions)}
+Test F1 Score: {test_metrics['f1_weighted']:.4f}
+Test Accuracy: {test_metrics['accuracy']:.4f}
+Test F1 Macro Average: {test_metrics['f1_macro']:.4f}
 
-=== 每类别详细结果 ===
+=== Per-Class Detailed Results ===
 """
         
-        # 添加每类别的详细结果
+        # Add per-class detailed results
         for class_name in self.class_names:
             class_idx = self.dataset.label_encoder.transform([class_name])[0]
             true_count = np.sum(np.array(test_true) == class_idx)
@@ -973,14 +973,14 @@ class MLPClassifier:
                 precision = correct_count / pred_count if pred_count > 0 else 0
                 f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
                 
-                summary_text += f"{class_name}: 真实={true_count}, 预测={pred_count}, 正确={correct_count}, "
+                summary_text += f"{class_name}: True={true_count}, Predicted={pred_count}, Correct={correct_count}, "
                 summary_text += f"Precision={precision:.3f}, Recall={recall:.3f}, F1={f1:.3f}\n"
         
-        summary_text += f"\n结果文件保存在: {self.results_dir}\n"
-        summary_text += f"详细预测结果: final_test_detailed_predictions.csv\n"
-        summary_text += f"模型文件: mlp_{self.aggregation_method}_fold_*.pth\n"
+        summary_text += f"\nResult files saved to: {self.results_dir}\n"
+        summary_text += f"Detailed prediction results: final_test_detailed_predictions.csv\n"
+        summary_text += f"Model files: mlp_{self.aggregation_method}_fold_*.pth\n"
         
-        # 保存摘要
+        # Save summary
         summary_path = self.results_dir / 'final_test_summary.txt'
         with open(summary_path, 'w', encoding='utf-8') as f:
             f.write(summary_text)
@@ -989,36 +989,36 @@ class MLPClassifier:
         return test_metrics
 
 def main():
-    """主函数"""
+    """Main function"""
     
-    # 路径设置 - 与MIL.py保持一致
+    # Path settings - consistent with MIL.py
     csv_file = 'data/wsi_feature_labels.csv'
     feature_dir = 'data/WSI/features/h5_files'
     
-    # 检查文件存在性
+    # Check file existence
     if not os.path.exists(csv_file):
-        print(f"错误: CSV文件 {csv_file} 不存在!")
+        print(f"Error: CSV file {csv_file} does not exist!")
         return
     
     if not os.path.exists(feature_dir):
-        print(f"错误: 特征目录 {feature_dir} 不存在!")
+        print(f"Error: Feature directory {feature_dir} does not exist!")
         return
     
     print("\n" + "="*60)
-    print("MLP分类器 - 基于CLAM特征")
+    print("MLP Classifier - Based on CLAM Features")
     print("="*60)
     
-    # 测试不同的特征聚合方法
+    # Test different feature aggregation methods
     aggregation_methods = ['mean', 'max', 'mean_max']
     
     for method in aggregation_methods:
-        print(f"\n{'='*20} 测试 {method.upper()} 聚合方法 {'='*20}")
+        print(f"\n{'='*20} Testing {method.upper()} Aggregation Method {'='*20}")
         
         try:
-            # 创建分类器
+            # Create classifier
             classifier = MLPClassifier(csv_file, feature_dir, aggregation_method=method)
             
-            # 训练
+            # Train
             fold_results = classifier.train_kfold(
                 k=5, 
                 num_epochs=100,
@@ -1027,26 +1027,26 @@ def main():
                 hidden_dims=[512, 256, 128]
             )
             
-            print(f"\n✅ MLP ({method.upper()}) 交叉验证训练完成!")
+            print(f"\n✅ MLP ({method.upper()}) cross-validation training completed!")
             
-            # 在独立测试集上评估
-            print(f"\n{'='*30} 独立测试集评估 {'='*30}")
+            # Evaluate on independent test set
+            print(f"\n{'='*30} Independent Test Set Evaluation {'='*30}")
             final_test_results = classifier.evaluate_final_test(hidden_dims=[512, 256, 128])
             
             if final_test_results:
-                print(f"\n🎯 MLP ({method.upper()}) 最终测试结果:")
-                print(f"   测试F1分数: {final_test_results['f1_weighted']:.4f}")
-                print(f"   测试准确率: {final_test_results['accuracy']:.4f}")
+                print(f"\n🎯 MLP ({method.upper()}) final test results:")
+                print(f"   Test F1 score: {final_test_results['f1_weighted']:.4f}")
+                print(f"   Test accuracy: {final_test_results['accuracy']:.4f}")
             
-            print(f"\n📁 完整结果保存在: {classifier.results_dir}")
-            print(f"📊 包含模型文件: mlp_{method}_fold_*.pth")
+            print(f"\n📁 Complete results saved to: {classifier.results_dir}")
+            print(f"📊 Includes model files: mlp_{method}_fold_*.pth")
             
         except Exception as e:
-            print(f"❌ MLP ({method.upper()}) 训练失败: {e}")
+            print(f"❌ MLP ({method.upper()}) training failed: {e}")
             continue
     
-    print(f"\n🎉 所有MLP聚合方法测试完成!")
-    print(f"📊 查看各自results目录获取详细结果")
+    print(f"\n🎉 All MLP aggregation method testing completed!")
+    print(f"📊 Check respective results directories for detailed results")
 
 if __name__ == "__main__":
     main()
