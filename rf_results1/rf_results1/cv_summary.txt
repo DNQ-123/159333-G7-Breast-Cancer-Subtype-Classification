@@ -1,0 +1,12 @@
+5-Fold Cross-Validation Summary - RandomForest(+enhanced)
+========================================
+Architecture: RandomForest Classifier
+========================================
+Mean Accuracy: 0.6228 ± 0.0271
+Mean F1(w):   0.5639 ± 0.0278
+Best Params:  {'n_estimators': 1200, 'min_samples_split': 3, 'min_samples_leaf': 1, 'max_features': 0.5, 'max_depth': None, 'criterion': 'entropy'}
+Class Weight Mode: balanced
+Focal: True (gamma=3.5, two-pass=True)
+Boost: {"HER2-enriched":1.5, "Basal-like":1.3, "Luminal B":1.2}
+Rarity Multiplier: 1.2
+Margin: True (thr=0.1, w=0.5)

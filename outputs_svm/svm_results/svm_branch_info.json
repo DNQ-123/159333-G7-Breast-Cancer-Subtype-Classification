@@ -1,0 +1,23 @@
+{
+  "model": "SVM(+focal/boost/rarity/margin/weights)",
+  "class_names": [
+    "Basal-like",
+    "HER2-enriched",
+    "Luminal A",
+    "Luminal B",
+    "Solid Tissue Normal"
+  ],
+  "random_state": 42,
+  "class_weight_mode": "balanced",
+  "class_weight_json": "",
+  "enable_focal": true,
+  "base_gamma": 2.5,
+  "focal_two_pass": true,
+  "class_boost_json": "{\"HER2-enriched\":1.6, \"Basal-like\":1.4, \"Luminal B\":1.1}",
+  "rarity_multiplier": 0.8,
+  "enable_margin": true,
+  "margin_threshold": 0.15,
+  "margin_weight": 0.3,
+  "n_splits_cv": 5,
+  "random_search_iters": 60
+}

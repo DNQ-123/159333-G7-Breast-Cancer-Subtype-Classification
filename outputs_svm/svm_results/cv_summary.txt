@@ -1,0 +1,12 @@
+5-Fold Cross-Validation Summary - SVM(+enhanced)
+========================================
+Architecture: SVM Classifier
+========================================
+Mean Accuracy: 0.6414 ± 0.0272
+Mean F1(w):   0.6427 ± 0.0258
+Best Params:  {'kernel': 'linear', 'C': 200}
+Class Weight Mode: balanced
+Focal: True (gamma=2.5, two-pass=True)
+Boost: {"HER2-enriched":1.6, "Basal-like":1.4, "Luminal B":1.1}
+Rarity Multiplier: 0.8
+Margin: True (thr=0.15, w=0.3)
