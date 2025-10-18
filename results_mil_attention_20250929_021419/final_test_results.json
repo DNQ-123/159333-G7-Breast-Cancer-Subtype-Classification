@@ -1,0 +1,38 @@
+{
+  "experiment_summary": {
+    "timestamp": "2025-09-29 17:35:49",
+    "model_type": "MIL_Classifier_attention",
+    "mil_method": "attention",
+    "total_folds": 5
+  },
+  "final_test_results": {
+    "fold": 0,
+    "fold_type": "final_test",
+    "mil_method": "attention",
+    "accuracy": 0.6383442265795207,
+    "f1_weighted": 0.5909638156217366,
+    "f1_macro": 0.5054809322363016,
+    "total_samples": 459,
+    "correct_predictions": 293,
+    "roc_auc_macro": 0.8042797011955946,
+    "average_precision_macro": 0.5493493359586136,
+    "roc_auc_per_class": {
+      "Basal-like": 0.8446059627161988,
+      "HER2-enriched": 0.662923561859732,
+      "Luminal A": 0.8300743807990184,
+      "Luminal B": 0.6782896717856067,
+      "Solid Tissue Normal": 0.9974655312246553
+    },
+    "average_precision_per_class": {
+      "Basal-like": 0.5409816453271846,
+      "HER2-enriched": 0.13729148101260918,
+      "Luminal A": 0.771659554970923,
+      "Luminal B": 0.31470515557096207,
+      "Solid Tissue Normal": 0.982108842911389
+    }
+  },
+  "test_ensemble_info": {
+    "num_models_used": 5,
+    "ensemble_method": "average_probabilities"
+  }
+}

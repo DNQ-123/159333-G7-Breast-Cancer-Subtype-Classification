@@ -1,0 +1,6 @@
+,Basal-like,HER2-enriched,Luminal A,Luminal B,Solid Tissue Normal
+Basal-like,21,7,25,9,1
+HER2-enriched,3,7,9,10,0
+Luminal A,9,6,137,13,0
+Luminal B,9,9,35,19,0
+Solid Tissue Normal,0,0,1,0,37

@@ -1,0 +1,22 @@
+
+=== TRANSMIL MIL 最终测试结果摘要 ===
+实验时间: 2025-09-30 20:18:05
+模型类型: MIL_Classifier_transmil
+
+=== 独立测试集结果 ===
+测试集大小: 459 样本
+集成模型数: 5 个
+测试F1分数: 0.5502
+测试准确率: 0.6057
+测试F1宏平均: 0.4619
+
+=== 每类别详细结果 ===
+Basal-like: 真实=78, 预测=71, 正确=37, Precision=0.521, Recall=0.474, F1=0.497
+HER2-enriched: 真实=36, 预测=0, 正确=0, Precision=0.000, Recall=0.000, F1=0.000
+Luminal A: 真实=207, 预测=276, 正确=180, Precision=0.652, Recall=0.870, F1=0.745
+Luminal B: 真实=90, 预测=52, 正确=14, Precision=0.269, Recall=0.156, F1=0.197
+Solid Tissue Normal: 真实=48, 预测=60, 正确=47, Precision=0.783, Recall=0.979, F1=0.870
+
+结果文件保存在: results_mil_transmil_20250930_082204
+详细预测结果: final_test_detailed_predictions.csv
+模型文件: mil_transmil_fold_*.pth

@@ -1,0 +1,38 @@
+{
+  "experiment_summary": {
+    "timestamp": "2025-09-30 20:18:05",
+    "model_type": "MIL_Classifier_transmil",
+    "mil_method": "transmil",
+    "total_folds": 5
+  },
+  "final_test_results": {
+    "fold": 0,
+    "fold_type": "final_test",
+    "mil_method": "transmil",
+    "accuracy": 0.6056644880174292,
+    "f1_weighted": 0.5502139999352691,
+    "f1_macro": 0.4619078758341531,
+    "total_samples": 459,
+    "correct_predictions": 278,
+    "roc_auc_macro": 0.7820651195695677,
+    "average_precision_macro": 0.527392909442079,
+    "roc_auc_per_class": {
+      "Basal-like": 0.8284541355407496,
+      "HER2-enriched": 0.6356711321250328,
+      "Luminal A": 0.8043094854689058,
+      "Luminal B": 0.6374585968081904,
+      "Solid Tissue Normal": 0.9973641524736415
+    },
+    "average_precision_per_class": {
+      "Basal-like": 0.5096221814422814,
+      "HER2-enriched": 0.11465005343058426,
+      "Luminal A": 0.7449323130657413,
+      "Luminal B": 0.2873800908434758,
+      "Solid Tissue Normal": 0.9803799084283119
+    }
+  },
+  "test_ensemble_info": {
+    "num_models_used": 5,
+    "ensemble_method": "average_probabilities"
+  }
+}

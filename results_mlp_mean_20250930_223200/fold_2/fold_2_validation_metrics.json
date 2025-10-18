@@ -1,0 +1,10 @@
+{
+  "fold": 2,
+  "fold_type": "validation",
+  "aggregation_method": "mean",
+  "accuracy": 0.6076294277929155,
+  "f1_weighted": 0.599467355728106,
+  "f1_macro": 0.5583233348891967,
+  "total_samples": 367,
+  "correct_predictions": 0
+}

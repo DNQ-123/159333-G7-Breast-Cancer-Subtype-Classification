@@ -1,0 +1,10 @@
+{
+  "fold": 3,
+  "fold_type": "validation",
+  "mil_method": "dsmil",
+  "accuracy": 0.6284153005464481,
+  "f1_weighted": 0.59654128474551,
+  "f1_macro": 0.5161960652805723,
+  "total_samples": 366,
+  "correct_predictions": 0
+}

@@ -1,0 +1,26 @@
+{
+  "model": "LogisticRegression(+focal/boost/rarity/margin)",
+  "class_names": [
+    "Basal-like",
+    "HER2-enriched",
+    "Luminal A",
+    "Luminal B",
+    "Solid Tissue Normal"
+  ],
+  "random_state": 2025,
+  "class_weight_mode": "balanced",
+  "focal": true,
+  "base_gamma": 1.5,
+  "boost": "{\"HER2-enriched\":1.5, \"Basal-like\":1.3, \"Solid Tissue Normal\":1.2}",
+  "rarity": 0.8,
+  "margin": true,
+  "margin_thr": 0.25,
+  "margin_w": 0.35,
+  "cv_splits": 5,
+  "random_search_iters": 60,
+  "best_params": {
+    "C": 260.85401304829355,
+    "penalty": "l2",
+    "solver": "lbfgs"
+  }
+}

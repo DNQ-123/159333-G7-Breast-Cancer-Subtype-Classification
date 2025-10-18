@@ -1,0 +1,10 @@
+{
+  "fold": 0,
+  "fold_type": "final_test",
+  "mil_method": "transmil",
+  "accuracy": 0.6056644880174292,
+  "f1_weighted": 0.5502139999352691,
+  "f1_macro": 0.4619078758341531,
+  "total_samples": 459,
+  "correct_predictions": 278
+}

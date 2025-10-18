@@ -1,0 +1,44 @@
+{
+  "timestamp": "2025-09-30 22:32:00",
+  "model_type": "MLP_Classifier_mean",
+  "aggregation_method": "mean",
+  "device": "cuda",
+  "num_classes": 5,
+  "class_names": [
+    "Basal-like",
+    "HER2-enriched",
+    "Luminal A",
+    "Luminal B",
+    "Solid Tissue Normal"
+  ],
+  "feature_dim": 1024,
+  "base_feature_dim": 1024,
+  "dataset_info": {
+    "total_samples": 2291,
+    "max_patches": 1000,
+    "csv_file": "data/wsi_feature_labels.csv",
+    "feature_dir": "data/WSI/features/h5_files"
+  },
+  "class_distribution": {
+    "Basal-like": {
+      "count": 390,
+      "percentage": 17.023134002618946
+    },
+    "HER2-enriched": {
+      "count": 181,
+      "percentage": 7.900480139676996
+    },
+    "Luminal A": {
+      "count": 1031,
+      "percentage": 45.00218245307726
+    },
+    "Luminal B": {
+      "count": 448,
+      "percentage": 19.554779572239198
+    },
+    "Solid Tissue Normal": {
+      "count": 241,
+      "percentage": 10.519423832387604
+    }
+  }
+}

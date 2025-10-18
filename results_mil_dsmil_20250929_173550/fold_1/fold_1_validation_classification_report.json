@@ -1,0 +1,45 @@
+{
+  "Basal-like": {
+    "precision": 0.4868421052631579,
+    "recall": 0.5873015873015873,
+    "f1-score": 0.5323741007194245,
+    "support": 63.0
+  },
+  "HER2-enriched": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1-score": 0.0,
+    "support": 29.0
+  },
+  "Luminal A": {
+    "precision": 0.6862745098039216,
+    "recall": 0.8484848484848485,
+    "f1-score": 0.7588075880758808,
+    "support": 165.0
+  },
+  "Luminal B": {
+    "precision": 0.3541666666666667,
+    "recall": 0.2361111111111111,
+    "f1-score": 0.2833333333333333,
+    "support": 72.0
+  },
+  "Solid Tissue Normal": {
+    "precision": 0.8717948717948718,
+    "recall": 0.8947368421052632,
+    "f1-score": 0.8831168831168831,
+    "support": 38.0
+  },
+  "accuracy": 0.6212534059945504,
+  "macro avg": {
+    "precision": 0.47981563070572364,
+    "recall": 0.513326877800562,
+    "f1-score": 0.4915263810491043,
+    "support": 367.0
+  },
+  "weighted avg": {
+    "precision": 0.5518652639712021,
+    "recall": 0.6212534059945504,
+    "f1-score": 0.5795674712160371,
+    "support": 367.0
+  }
+}
